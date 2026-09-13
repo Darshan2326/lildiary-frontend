@@ -66,6 +66,7 @@
     <application
         android:label="lildairy"
         android:requestLegacyExternalStorage="true"
+        android:usesCleartextTraffic="true"
         android:icon="@mipmap/launcher_icon">
 
         <activity
