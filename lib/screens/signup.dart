@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:lildairy/controllers/auth_controller.dart';
 import 'package:lildairy/screens/AppIntroductionScreen.dart';
 import 'package:lildairy/widget/button.dart';
 import '../widget/snackbar.dart';
@@ -15,10 +17,15 @@ class SignupScreen extends StatefulWidget {
 class _SignupScreenState extends State<SignupScreen>
     with SingleTickerProviderStateMixin {
   final TextEditingController nameController = TextEditingController();
+  final TextEditingController usernameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  final TextEditingController confirmpasswordController =
+      TextEditingController();
   bool isLoading = false;
   double opacity = 0.0;
+
+  final AuthController authController = Get.put(AuthController());
 
   @override
   void initState() {
@@ -40,30 +47,12 @@ class _SignupScreenState extends State<SignupScreen>
   }
 
   void signupUser() async {
-    // Basic input validation
-    if (nameController.text.isEmpty) {
-      showSnackBar(context, "Please enter your name.");
-      return;
-    }
-    if (emailController.text.isEmpty) {
-      showSnackBar(context, "Please enter your email.");
-      return;
-    }
-    if (passwordController.text.isEmpty) {
-      showSnackBar(context, "Please enter your password.");
-      return;
-    }
-
-    setState(() {
-      isLoading = true;
-    });
-
-    setState(() {
-      isLoading = false;
-    });
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const AppIntroductionScreen()),
-    );
+    await authController.RegisterAPI(
+        name: nameController.text.trim(),
+        username: usernameController.text.trim(),
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+        confirm_password: confirmpasswordController.text.trim());
   }
 
   @override
@@ -125,6 +114,12 @@ class _SignupScreenState extends State<SignupScreen>
                       textInputType: TextInputType.text,
                     ),
                     TextFieldInput(
+                      icon: Icons.person,
+                      textEditingController: usernameController,
+                      hintText: 'Enter your username',
+                      textInputType: TextInputType.text,
+                    ),
+                    TextFieldInput(
                       icon: Icons.email,
                       textEditingController: emailController,
                       hintText: 'Enter your email',
@@ -134,6 +129,13 @@ class _SignupScreenState extends State<SignupScreen>
                       icon: Icons.lock,
                       textEditingController: passwordController,
                       hintText: 'Enter your password',
+                      textInputType: TextInputType.visiblePassword,
+                      isPass: true,
+                    ),
+                    TextFieldInput(
+                      icon: Icons.lock,
+                      textEditingController: confirmpasswordController,
+                      hintText: 'Enter your confirm password',
                       textInputType: TextInputType.visiblePassword,
                       isPass: true,
                     ),

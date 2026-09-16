@@ -1,48 +1,3 @@
-// import 'dart:convert';
-
-// import 'package:flutter/foundation.dart';
-// import 'package:http/http.dart' as http;
-
-// class ApiClient {
-//   Future<http.Response> post(
-//     String url,
-//     Map<String, dynamic> body,
-//   ) async {
-//     final uri = Uri.parse(url);
-//     final headers = {
-//       'Content-Type': 'application/json',
-//     };
-//     final encodedBody = jsonEncode(body);
-//     final logBody = Map<String, dynamic>.from(body)
-//       ..update('password', (value) => '***', ifAbsent: () => '***');
-
-//     debugPrint('[API REQUEST] POST $uri');
-//     debugPrint('[API REQUEST] Headers: $headers');
-//     debugPrint('[API REQUEST] Body: ${jsonEncode(logBody)}');
-
-//     try {
-//       final response = await http
-//           .post(
-//             uri,
-//             headers: headers,
-//             body: encodedBody,
-//           )
-//           .timeout(const Duration(seconds: 15));
-
-//       debugPrint('[API RESPONSE] POST $uri');
-//       debugPrint('[API RESPONSE] Status: ${response.statusCode}');
-//       debugPrint('[API RESPONSE] Headers: ${response.headers}');
-//       debugPrint('[API RESPONSE] Body: ${response.body}');
-
-//       return response;
-//     } catch (error, stackTrace) {
-//       debugPrint('[API ERROR] POST $uri failed: $error');
-//       debugPrint('[API ERROR] Stack trace: $stackTrace');
-//       rethrow;
-//     }
-//   }
-// }
-
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -51,17 +6,15 @@ import 'package:http/http.dart' as http;
 class ApiClient {
   Future<http.Response> post(
     String url,
-    Map<String, dynamic> body,
-  ) async {
+    Map<String, dynamic> body, {
+    Map<String, String>? headers,
+  }) async {
     final uri = Uri.parse(url);
-
-    final headers = {
+    final requestHeaders = {
       'Content-Type': 'application/json',
+      ...?headers,
     };
-
     final encodedBody = jsonEncode(body);
-
-    // Hide sensitive fields from logs
     final logBody = Map<String, dynamic>.from(body);
 
     if (logBody.containsKey('password')) {
@@ -71,7 +24,7 @@ class ApiClient {
     _logRequest(
       method: 'POST',
       url: uri.toString(),
-      headers: headers,
+      headers: requestHeaders,
       body: logBody,
     );
 
@@ -79,7 +32,7 @@ class ApiClient {
       final response = await http
           .post(
             uri,
-            headers: headers,
+            headers: requestHeaders,
             body: encodedBody,
           )
           .timeout(const Duration(seconds: 15));

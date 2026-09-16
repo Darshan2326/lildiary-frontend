@@ -67,7 +67,7 @@ class _LoginScreenState extends State<LoginScreen>
   // --------------------------------------------------
 
   Future<void> loginUser() async {
-    await authController.login(
+    await authController.loginAPI(
       identifier: identifierController.text.trim(),
       password: passwordController.text,
     );

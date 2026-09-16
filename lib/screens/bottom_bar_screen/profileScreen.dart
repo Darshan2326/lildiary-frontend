@@ -1,9 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:lildairy/controllers/auth_controller.dart';
 import 'package:lildairy/screens/aboutus.dart';
 import 'package:lildairy/screens/bottom_bar_screen/memoriesScreen.dart';
-import 'package:lildairy/screens/login.dart';
 
 class ProfilePage extends StatefulWidget {
   final String userId; // Pass the user ID to differentiate accounts
@@ -15,6 +16,7 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
+  final AuthController _authController = Get.find<AuthController>();
   String? profileImageUrl;
   String displayName = '';
   String email = '';
@@ -81,20 +83,13 @@ class _ProfilePageState extends State<ProfilePage> {
         const SnackBar(
             content: Text('Delete action is ready for API integration')),
       );
-      _navigateToLoginScreen();
+      await _authController.logout();
     } catch (e) {
       print('Error deleting account: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Failed to delete account')),
       );
     }
-  }
-
-  void _navigateToLoginScreen() {
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const LoginScreen()),
-      (route) => false,
-    );
   }
 
   void _navigateToMemoriesScreen() {
@@ -288,55 +283,52 @@ class _ProfilePageState extends State<ProfilePage> {
         false;
   }
 
-  Future<bool> _confirmLogOutDialog() async {
-    return await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Center(child: Text('Confirm Logout...')),
-            content:
-                const Text('Are you sure you want to Logout your account?'),
-            actions: [
-              Center(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
-                      ),
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text(
-                        'Cancel',
-                        style: TextStyle(color: Color(0xFF81D4FA)),
-                      ),
-                    ),
-                    const SizedBox(
-                      width: 20,
-                    ),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF81D4FA),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
-                      ),
-                      onPressed: () async {
-                        _navigateToLoginScreen();
-                        _navigateToLoginScreen();
-                      },
-                      // onPressed: () => Navigator.of(context).pop(true),
-                      child: const Text(
-                        'yes',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ],
+  Future<void> _confirmLogOutDialog() async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Center(child: Text('Confirm Logout...')),
+        content: const Text('Are you sure you want to Logout your account?'),
+        actions: [
+          Center(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(color: Color(0xFF81D4FA)),
+                  ),
                 ),
-              )
-            ],
-          ),
-        ) ??
-        false;
+                const SizedBox(
+                  width: 20,
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF81D4FA),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () async {
+                    Navigator.of(context).pop();
+                    await _authController.logoutAPI();
+                  },
+                  child: const Text(
+                    'yes',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          )
+        ],
+      ),
+    );
   }
 }
