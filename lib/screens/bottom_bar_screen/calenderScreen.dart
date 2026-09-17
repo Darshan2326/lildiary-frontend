@@ -1,71 +1,242 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:get/get.dart';
+import 'package:lildairy/controllers/calendarscreen_controller.dart';
 import 'package:lildairy/screens/NoteDetailsScreen.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:video_player/video_player.dart';
-// import 'NoteDetailsScreen.dart';
 
-class CalendarScreen extends StatefulWidget {
+class CalendarScreen extends StatelessWidget {
   const CalendarScreen({super.key});
 
   @override
-  _CalendarScreenState createState() => _CalendarScreenState();
-}
+  Widget build(BuildContext context) {
+    final CalendarController controller = Get.put(CalendarController());
 
-class _CalendarScreenState extends State<CalendarScreen> {
-  DateTime _selectedDate = DateTime.now();
-  List<Map<String, dynamic>> _memoriesForSelectedDate = [];
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          "Calendar",
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFB4DCF1),
+              Colors.white,
+              Color(0xFFF1C6D4),
+            ],
+          ),
+        ),
+        child: Column(
+          children: [
+            // ==============================
+            // CALENDAR
+            // ==============================
 
-  @override
-  void initState() {
-    super.initState();
-    _fetchMemoriesForDate(_selectedDate);
-  }
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Card(
+                elevation: 5,
+                child: Obx(
+                  () => TableCalendar(
+                    focusedDay: controller.selectedDate.value,
+                    firstDay: DateTime(2000),
+                    lastDay: DateTime(2100),
+                    selectedDayPredicate: (day) {
+                      return isSameDay(
+                        controller.selectedDate.value,
+                        day,
+                      );
+                    },
+                    onDaySelected: controller.onDateSelected,
+                    calendarFormat: CalendarFormat.month,
+                    startingDayOfWeek: StartingDayOfWeek.monday,
+                    calendarStyle: const CalendarStyle(
+                      selectedDecoration: BoxDecoration(
+                        color: Color(0xFF81D4FA),
+                        shape: BoxShape.circle,
+                      ),
+                      todayDecoration: BoxDecoration(
+                        color: Colors.grey,
+                        shape: BoxShape.circle,
+                      ),
+                      selectedTextStyle: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      todayTextStyle: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
 
-  Future<void> _fetchMemoriesForDate(DateTime date) async {
-    if (!mounted) return;
+            const SizedBox(height: 10),
 
-    final formattedDate = DateFormat('yyyy-MM-dd').format(date);
+            // ==============================
+            // MEMORIES
+            // ==============================
 
-    try {
-      setState(() {
-        _memoriesForSelectedDate = [];
-      });
-    } catch (e) {
-      debugPrint('Calendar fetch error: $e');
-      if (!mounted) return;
-      setState(() {
-        _memoriesForSelectedDate = [];
-      });
-    }
-  }
+            Expanded(
+              child: Obx(
+                () {
+                  final memories = controller.memoriesForSelectedDate;
 
-  void _onDateSelected(DateTime selectedDay, DateTime focusedDay) {
-    setState(() {
-      _selectedDate = selectedDay;
-    });
-    _fetchMemoriesForDate(selectedDay);
-  }
+                  if (memories.isEmpty) {
+                    return const Center(
+                      child: Text(
+                        'No memories for this date',
+                      ),
+                    );
+                  }
 
-  void _viewFullNote(String noteId, Map<String, dynamic> noteData) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) =>
-            NoteDetailScreen(noteId: noteId, noteData: noteData),
+                  return ListView.builder(
+                    itemCount: memories.length,
+                    itemBuilder: (context, index) {
+                      final memory = memories[index];
+
+                      final noteId = memory['id'];
+
+                      final noteData = memory['data'];
+
+                      final mediaPaths =
+                          noteData['mediaPaths'] as List<dynamic>? ?? [];
+
+                      final title = noteData['title'] ?? 'No Title';
+
+                      final description =
+                          noteData['description'] ?? 'No Description';
+
+                      return Card(
+                        elevation: 5,
+                        margin: const EdgeInsets.symmetric(
+                          vertical: 8,
+                          horizontal: 12,
+                        ),
+                        child: ListTile(
+                          title: Text(
+                            title,
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                description,
+                              ),
+
+                              const SizedBox(
+                                height: 8,
+                              ),
+
+                              // Media
+                              if (mediaPaths.isNotEmpty)
+                                SizedBox(
+                                  height: 200,
+                                  child: ListView.builder(
+                                    scrollDirection: Axis.horizontal,
+                                    itemCount: mediaPaths.length,
+                                    itemBuilder: (
+                                      context,
+                                      mediaIndex,
+                                    ) {
+                                      final mediaPath = mediaPaths[mediaIndex];
+
+                                      return Padding(
+                                        padding: const EdgeInsets.only(
+                                          right: 4.0,
+                                        ),
+                                        child: SizedBox(
+                                          width: 150,
+                                          child: _buildMediaPreview(
+                                            mediaPath.toString(),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                            ],
+                          ),
+                          onTap: () {
+                            _viewFullNote(
+                              context,
+                              noteId,
+                              noteData,
+                            );
+                          },
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  // Function to check if a file is an image
-  bool _isImage(String path) {
-    final imageExtensions = ['jpg', 'jpeg', 'png', 'gif'];
-    final extension = path.split('.').last.toLowerCase();
-    return imageExtensions.contains(extension);
+  // ==============================
+  // OPEN NOTE DETAILS
+  // ==============================
+
+  void _viewFullNote(
+    BuildContext context,
+    String noteId,
+    Map<String, dynamic> noteData,
+  ) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => NoteDetailScreen(
+          noteId: noteId,
+          noteData: noteData,
+        ),
+      ),
+    );
   }
 
-  // Widget to display media (image or video)
+  // ==============================
+  // CHECK IMAGE
+  // ==============================
+
+  bool _isImage(String path) {
+    const imageExtensions = [
+      'jpg',
+      'jpeg',
+      'png',
+      'gif',
+    ];
+
+    final extension = path.split('.').last.toLowerCase();
+
+    return imageExtensions.contains(
+      extension,
+    );
+  }
+
+  // ==============================
+  // MEDIA PREVIEW
+  // ==============================
+
   Widget _buildMediaPreview(String path) {
     if (_isImage(path)) {
       return Image.file(
@@ -74,142 +245,36 @@ class _CalendarScreenState extends State<CalendarScreen> {
         errorBuilder: (context, error, stackTrace) {
           return Container(
             color: Colors.grey,
-            child: const Center(child: Text('Invalid Image')),
+            child: const Center(
+              child: Text(
+                'Invalid Image',
+              ),
+            ),
           );
         },
       );
-    } else {
-      return VideoPreview(path: path);
     }
-  }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          "Calendar",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-      ),
-      body: Container(
-        decoration: const BoxDecoration(
-            gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xFFB4DCF1), Colors.white, Color(0xFFF1C6D4)])),
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: Card(
-                elevation: 5,
-                child: TableCalendar(
-                  focusedDay: _selectedDate,
-                  firstDay: DateTime(2000),
-                  lastDay: DateTime(2100),
-                  selectedDayPredicate: (day) => isSameDay(_selectedDate, day),
-                  onDaySelected: _onDateSelected,
-                  calendarFormat: CalendarFormat.month,
-                  startingDayOfWeek: StartingDayOfWeek.monday,
-                  calendarStyle: const CalendarStyle(
-                    selectedDecoration: BoxDecoration(
-                      color: Color(0xFF81D4FA),
-                      shape: BoxShape.circle,
-                    ),
-                    todayDecoration: BoxDecoration(
-                      color: Colors.grey, // Color for the current day
-                      shape: BoxShape.circle,
-                    ),
-                    selectedTextStyle: TextStyle(
-                      color: Colors.white, // Text color for selected date
-                      fontWeight: FontWeight.bold,
-                    ),
-                    todayTextStyle: TextStyle(
-                      color: Colors.white, // Text color for today
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: _memoriesForSelectedDate.isNotEmpty
-                  ? ListView.builder(
-                      itemCount: _memoriesForSelectedDate.length,
-                      itemBuilder: (context, index) {
-                        final memory = _memoriesForSelectedDate[index];
-                        final noteId = memory['id'];
-                        final noteData = memory['data'];
-                        final mediaPaths =
-                            noteData['mediaPaths'] as List<dynamic>? ?? [];
-                        final title = noteData['title'] ?? 'No Title';
-                        final description =
-                            noteData['description'] ?? 'No Description';
-
-                        return Card(
-                          elevation: 5,
-                          margin: const EdgeInsets.symmetric(
-                              vertical: 8, horizontal: 12),
-                          child: ListTile(
-                            title: Text(title,
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold)),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(description),
-                                const SizedBox(height: 8),
-                                if (mediaPaths.isNotEmpty)
-                                  SizedBox(
-                                    height: 200,
-                                    child: ListView.builder(
-                                      scrollDirection: Axis.horizontal,
-                                      itemCount: mediaPaths.length,
-                                      itemBuilder: (context, index) {
-                                        final mediaPath = mediaPaths[index];
-                                        return Padding(
-                                          padding:
-                                              const EdgeInsets.only(right: 4.0),
-                                          child: SizedBox(
-                                            width: 150,
-                                            child:
-                                                _buildMediaPreview(mediaPath),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            onTap: () => _viewFullNote(noteId, noteData),
-                          ),
-                        );
-                      },
-                    )
-                  : const Center(
-                      child: Text('No memories for this date'),
-                    ),
-            ),
-          ],
-        ),
-      ),
+    return VideoPreview(
+      path: path,
     );
   }
 }
 
-// Video Preview Widget
+// ============================================================
+// VIDEO PREVIEW
+// ============================================================
+
 class VideoPreview extends StatefulWidget {
   final String path;
 
-  const VideoPreview({super.key, required this.path});
+  const VideoPreview({
+    super.key,
+    required this.path,
+  });
 
   @override
-  _VideoPreviewState createState() => _VideoPreviewState();
+  State<VideoPreview> createState() => _VideoPreviewState();
 }
 
 class _VideoPreviewState extends State<VideoPreview> {
@@ -218,25 +283,38 @@ class _VideoPreviewState extends State<VideoPreview> {
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.file(File(widget.path))
-      ..initialize().then((_) {
-        setState(() {});
-      });
+
+    _controller = VideoPlayerController.file(
+      File(widget.path),
+    )..initialize().then(
+        (_) {
+          if (mounted) {
+            setState(() {});
+          }
+        },
+      );
   }
 
   @override
   void dispose() {
     _controller.dispose();
+
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return _controller.value.isInitialized
-        ? AspectRatio(
-            aspectRatio: _controller.value.aspectRatio,
-            child: VideoPlayer(_controller),
-          )
-        : const Center(child: CircularProgressIndicator());
+    if (!_controller.value.isInitialized) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    return AspectRatio(
+      aspectRatio: _controller.value.aspectRatio,
+      child: VideoPlayer(
+        _controller,
+      ),
+    );
   }
 }

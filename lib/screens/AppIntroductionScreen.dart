@@ -61,7 +61,7 @@ class _AppIntroductionScreenState extends State<AppIntroductionScreen> {
       ],
       onDone: () {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const NotesHomeScreen()),
+          MaterialPageRoute(builder: (context) => NotesHomeScreen()),
         );
       },
       dotsDecorator: DotsDecorator(

@@ -56,7 +56,7 @@ class AuthController extends GetxController {
 
       await login(result.accessToken);
 
-      Get.offAll(() => const NotesHomeScreen());
+      Get.offAll(() => NotesHomeScreen());
 
       Get.snackbar(
         'Success',

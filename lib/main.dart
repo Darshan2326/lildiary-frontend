@@ -26,7 +26,7 @@ class MyApp extends StatelessWidget {
       home: Obx(
         () {
           if (authController.isLoggedIn.value) {
-            return const NotesHomeScreen();
+            return NotesHomeScreen();
           }
 
           return LoginScreen();
