@@ -1,63 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:lildairy/controllers/auth_controller.dart';
-import 'package:lildairy/screens/AppIntroductionScreen.dart';
+import 'package:lildairy/controllers/signup_controller.dart';
 import 'package:lildairy/widget/button.dart';
-import '../widget/snackbar.dart';
 import '../widget/text_field.dart';
 import 'login.dart';
 
-class SignupScreen extends StatefulWidget {
-  const SignupScreen({super.key});
+class SignupScreen extends StatelessWidget {
+  SignupScreen({super.key});
 
-  @override
-  State<SignupScreen> createState() => _SignupScreenState();
-}
-
-class _SignupScreenState extends State<SignupScreen>
-    with SingleTickerProviderStateMixin {
-  final TextEditingController nameController = TextEditingController();
-  final TextEditingController usernameController = TextEditingController();
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
-  final TextEditingController confirmpasswordController =
-      TextEditingController();
-  bool isLoading = false;
-  double opacity = 0.0;
-
-  final AuthController authController = Get.put(AuthController());
-
-  @override
-  void initState() {
-    super.initState();
-    // Trigger fade-in animation when the widget builds
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      setState(() {
-        opacity = 1.0;
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
-    emailController.dispose();
-    passwordController.dispose();
-    nameController.dispose();
-  }
-
-  void signupUser() async {
-    await authController.RegisterAPI(
-        name: nameController.text.trim(),
-        username: usernameController.text.trim(),
-        email: emailController.text.trim(),
-        password: passwordController.text.trim(),
-        confirm_password: confirmpasswordController.text.trim());
-  }
+  // GetX Signup Controller
+  final SignupController controller = Get.put(SignupController());
 
   @override
   Widget build(BuildContext context) {
-    double height = MediaQuery.of(context).size.height;
+    final double height = MediaQuery.of(context).size.height;
+
     return Scaffold(
       backgroundColor: Colors.white,
       resizeToAvoidBottomInset: false,
@@ -65,96 +22,125 @@ class _SignupScreenState extends State<SignupScreen>
         padding: const EdgeInsets.only(top: 40),
         child: SingleChildScrollView(
           child: SafeArea(
-            child: AnimatedOpacity(
-              duration: const Duration(seconds: 1),
-              curve: Curves.easeIn,
-              opacity: opacity,
-              child: SizedBox(
+            child: Obx(
+              () => AnimatedOpacity(
+                duration: const Duration(seconds: 1),
+                curve: Curves.easeIn,
+                opacity: controller.opacity.value,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
+                    // Logo
                     SizedBox(
                       height: height / 7,
-                      child: Image.asset('assets/logos/Logo_trans.png'),
+                      child: Image.asset(
+                        'assets/logos/Logo_trans.png',
+                      ),
                     ),
+
                     const SizedBox(height: 50),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: const [
-                        Padding(
-                          padding: EdgeInsets.only(left: 30),
-                          child: Text(
-                            "Register",
-                            style: TextStyle(
-                                fontSize: 30, fontWeight: FontWeight.bold),
+
+                    // Register Title
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 30),
+                        child: Text(
+                          "Register",
+                          style: TextStyle(
+                            fontSize: 30,
+                            fontWeight: FontWeight.bold,
                           ),
-                        )
-                      ],
+                        ),
+                      ),
                     ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: const [
-                        Padding(
-                          padding: EdgeInsets.only(left: 30),
-                          child: Text(
-                            "To continue please register your account",
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey,
-                            ),
+
+                    // Subtitle
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 30),
+                        child: Text(
+                          "To continue please register your account",
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey,
                           ),
-                        )
-                      ],
+                        ),
+                      ),
                     ),
+
+                    // Name
                     TextFieldInput(
                       icon: Icons.person,
-                      textEditingController: nameController,
+                      textEditingController: controller.nameController,
                       hintText: 'Enter your name',
                       textInputType: TextInputType.text,
                     ),
+
+                    // Username
                     TextFieldInput(
                       icon: Icons.person,
-                      textEditingController: usernameController,
+                      textEditingController: controller.usernameController,
                       hintText: 'Enter your username',
                       textInputType: TextInputType.text,
                     ),
+
+                    // Email
                     TextFieldInput(
                       icon: Icons.email,
-                      textEditingController: emailController,
+                      textEditingController: controller.emailController,
                       hintText: 'Enter your email',
                       textInputType: TextInputType.emailAddress,
                     ),
+
+                    // Password
                     TextFieldInput(
                       icon: Icons.lock,
-                      textEditingController: passwordController,
+                      textEditingController: controller.passwordController,
                       hintText: 'Enter your password',
                       textInputType: TextInputType.visiblePassword,
                       isPass: true,
                     ),
+
+                    // Confirm Password
                     TextFieldInput(
                       icon: Icons.lock,
-                      textEditingController: confirmpasswordController,
+                      textEditingController:
+                          controller.confirmpasswordController,
                       hintText: 'Enter your confirm password',
                       textInputType: TextInputType.visiblePassword,
                       isPass: true,
                     ),
+
                     const SizedBox(height: 50),
-                    isLoading
-                        ? const CircularProgressIndicator()
-                        : MyButtons(onTap: signupUser, text: "Sign Up"),
+
+                    // Signup Button
+                    Obx(
+                      () => IgnorePointer(
+                        ignoring: controller.isLoading.value,
+                        child: MyButtons(
+                          onTap: controller.signupUser,
+                          text: controller.isLoading.value
+                              ? "Signing Up..."
+                              : "Sign Up",
+                        ),
+                      ),
+                    ),
+
                     const SizedBox(height: 20),
+
+                    // Login Navigation
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text("Already have an account?"),
+                        const Text(
+                          "Already have an account?",
+                        ),
                         GestureDetector(
                           onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => const LoginScreen(),
-                              ),
-                            );
+                            Get.off(() => LoginScreen());
                           },
                           child: const Text(
                             " Log in",
@@ -163,9 +149,9 @@ class _SignupScreenState extends State<SignupScreen>
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                        )
+                        ),
                       ],
-                    )
+                    ),
                   ],
                 ),
               ),

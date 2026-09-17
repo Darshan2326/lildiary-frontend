@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:lildairy/controllers/auth_controller.dart';
+import 'package:lildairy/controllers/login_controller.dart';
 import 'package:lildairy/screens/aboutus.dart';
 import 'package:lildairy/screens/bottom_bar_screen/memoriesScreen.dart';
 
