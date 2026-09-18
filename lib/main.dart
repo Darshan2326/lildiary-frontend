@@ -28,12 +28,8 @@ class MyApp extends StatelessWidget {
           if (authController.isLoggedIn.value) {
             return NotesHomeScreen();
           }
-<<<<<<< HEAD
-          return const LoginScreen();
-=======
 
           return LoginScreen();
->>>>>>> develop
         },
       ),
     );
