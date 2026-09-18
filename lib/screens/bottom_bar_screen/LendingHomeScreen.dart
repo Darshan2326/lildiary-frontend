@@ -2,45 +2,274 @@ import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:lildairy/controllers/lendinghome_controller.dart';
 import 'package:lildairy/screens/NoteDetailsScreen.dart';
 import 'package:lottie/lottie.dart';
 import 'package:video_player/video_player.dart';
 
-class lendingHomeScreen extends StatefulWidget {
-  final String userId; // Pass the user ID to differentiate accounts
+class lendingHomeScreen extends StatelessWidget {
+  final String userId;
 
-  const lendingHomeScreen({super.key, required this.userId});
+  lendingHomeScreen({
+    super.key,
+    required this.userId,
+  });
 
-  @override
-  State<lendingHomeScreen> createState() => _lendingHomeScreenState();
-}
-
-class _lendingHomeScreenState extends State<lendingHomeScreen> {
-  final TextEditingController searchController = TextEditingController();
-  String searchQuery = '';
-  bool isVideoPlaying = false;
-  File? _profileImage;
-  String? _userName;
+  final LendingHomeController controller = Get.put(
+    LendingHomeController(),
+  );
 
   @override
-  void initState() {
-    // TODO: implement initState
-    super.initState();
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        FocusScope.of(context).unfocus();
+      },
+      child: Scaffold(
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(100),
+          child: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            actions: const [
+              Image(
+                image: AssetImage(
+                  "assets/logos/Logo_png.png",
+                ),
+              ),
+            ],
+            toolbarHeight: 100,
+            title: Obx(
+              () => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Welcome Back!",
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.black38,
+                    ),
+                  ),
+                  Text(
+                    controller.userName.value.isEmpty
+                        ? 'Loading...'
+                        : controller.userName.value,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFFB4DCF1),
+                Colors.white,
+                Color(0xFFF1C6D4),
+              ],
+            ),
+          ),
+          child: Column(
+            children: [
+              // Search
+              Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: TextField(
+                  controller: controller.searchController,
+                  onChanged: controller.searchNotes,
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(
+                      Icons.search,
+                    ),
+                    hintText: 'Search Diary...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                ),
+              ),
+
+              // Notes
+              Expanded(
+                child: FutureBuilder<List<Map<String, dynamic>>>(
+                  future: Future.value(
+                    const <Map<String, dynamic>>[],
+                  ),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) {
+                      return const Center(
+                        child: CircularProgressIndicator(),
+                      );
+                    }
+
+                    return Obx(
+                      () {
+                        final notes = snapshot.data!.where(
+                          (noteData) {
+                            final title =
+                                noteData['title']?.toLowerCase() ?? '';
+
+                            return title.contains(
+                              controller.searchQuery.value,
+                            );
+                          },
+                        ).toList();
+
+                        // No search result
+                        if (notes.isEmpty &&
+                            controller.searchQuery.value.isNotEmpty) {
+                          return Column(
+                            children: [
+                              Center(
+                                child: Lottie.asset(
+                                  'assets/animation/empty.json',
+                                  width: 250,
+                                  height: 250,
+                                ),
+                              ),
+                              const Text(
+                                "No Memories...",
+                              ),
+                            ],
+                          );
+                        }
+
+                        // No notes
+                        if (notes.isEmpty) {
+                          return const Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Center(
+                                child: Text(
+                                  'No Memories...',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+
+                        return ListView.builder(
+                          itemCount: notes.length,
+                          itemBuilder: (context, index) {
+                            final noteData = notes[index];
+
+                            // Media paths
+                            final mediaPaths =
+                                noteData.containsKey('mediaPaths')
+                                    ? (noteData['mediaPaths'] as List<dynamic>)
+                                        .map(
+                                          (item) => item.toString(),
+                                        )
+                                        .toList()
+                                    : <String>[];
+
+                            // Date
+                            final formattedDate = DateFormat(
+                              'dd MMM, yyyy',
+                            ).format(
+                              DateTime.parse(
+                                noteData['timestamp'] as String,
+                              ),
+                            );
+
+                            return Card(
+                              elevation: 5,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                              child: Column(
+                                children: [
+                                  // Media
+                                  if (mediaPaths.isNotEmpty)
+                                    _buildMediaGrid(
+                                      mediaPaths,
+                                    )
+                                  else
+                                    Container(
+                                      height: 200,
+                                      width: double.infinity,
+                                      color: Colors.grey[200],
+                                      child: const Center(
+                                        child: Text(
+                                          'No Media',
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            color: Colors.black54,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+
+                                  // Note information
+                                  ListTile(
+                                    title: Text(
+                                      noteData['title'] ?? 'No Title',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    subtitle: Row(
+                                      children: [
+                                        const Icon(
+                                          CupertinoIcons.calendar,
+                                          color: Color(0xFFF48FB1),
+                                          size: 20,
+                                        ),
+                                        const SizedBox(
+                                          width: 5,
+                                        ),
+                                        Text(
+                                          formattedDate,
+                                        ),
+                                      ],
+                                    ),
+                                    onTap: () {
+                                      _viewFullNote(
+                                        context,
+                                        noteData['id'] as String,
+                                        noteData,
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
-  // Dismiss the keyboard when tapping outside of the text field
-  void dismissKeyboard() {
-    FocusScope.of(context).unfocus();
-  }
-
-  void searchNotes(String query) {
-    setState(() {
-      searchQuery = query.toLowerCase();
-    });
-  }
-
-  void _viewFullNote(String noteId, Map<String, dynamic> noteData) {
+  // Open note details
+  void _viewFullNote(
+    BuildContext context,
+    String noteId,
+    Map<String, dynamic> noteData,
+  ) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -52,185 +281,11 @@ class _lendingHomeScreenState extends State<lendingHomeScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: dismissKeyboard,
-      child: Scaffold(
-        appBar: PreferredSize(
-          preferredSize: const Size.fromHeight(100),
-          child: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            // centerTitle: true,
-            actions: const [
-              Image(
-                image: AssetImage("assets/logos/Logo_png.png"),
-              ),
-            ],
-            toolbarHeight: 100,
-            // title: Image.asset("assets/logos/Logo_png.png",),
-
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Welcome Back!",
-                  style: TextStyle(fontSize: 18, color: Colors.black38),
-                ),
-                Text(
-                  _userName ?? 'Loading...',
-                  style: const TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-          ),
-        ),
-        body: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xFFB4DCF1), Colors.white, Color(0xFFF1C6D4)],
-            ),
-          ),
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: TextField(
-                  controller: searchController,
-                  onChanged: searchNotes,
-                  decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.search),
-                    hintText: 'Search Diary...',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: FutureBuilder<List<Map<String, dynamic>>>(
-                  future: Future.value(const <Map<String, dynamic>>[]),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    final notes = snapshot.data!.where((noteData) {
-                      final title = noteData['title']?.toLowerCase() ?? '';
-                      return title.contains(searchQuery);
-                    }).toList();
-
-                    if (notes.isEmpty && searchQuery.isNotEmpty) {
-                      // Show empty animation if no results found
-                      return Column(
-                        children: [
-                          Center(
-                            child: Lottie.asset(
-                              'assets/animation/empty.json',
-                              width: 250,
-                              height: 250,
-                            ),
-                          ),
-                          const Text("No Memories...")
-                        ],
-                      );
-                    }
-
-                    if (notes.isEmpty) {
-                      // Show message when there are no notes
-                      return Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Center(
-                            child: Text(
-                              'No Memories...',
-                              style: TextStyle(
-                                  fontSize: 20, color: Colors.black54),
-                            ),
-                          ),
-                        ],
-                      );
-                    }
-
-                    return ListView.builder(
-                      itemCount: notes.length,
-                      itemBuilder: (context, index) {
-                        final noteData = notes[index];
-
-                        // Get media paths
-                        final mediaPaths = noteData != null &&
-                                noteData.containsKey('mediaPaths')
-                            ? (noteData['mediaPaths'] as List<dynamic>)
-                                .map((item) => item.toString())
-                                .toList()
-                            : <String>[];
-
-                        // Formatting the date
-                        final formattedDate = DateFormat('dd MMM, yyyy').format(
-                          DateTime.parse(noteData['timestamp'] as String),
-                        );
-
-                        return Card(
-                          elevation: 5,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(15)),
-                          child: Column(
-                            children: [
-                              if (mediaPaths.isNotEmpty)
-                                _buildMediaGrid(mediaPaths)
-                              else
-                                Container(
-                                  height: 200,
-                                  width: double.infinity,
-                                  color: Colors.grey[200],
-                                  child: const Center(
-                                    child: Text(
-                                      'No Media',
-                                      style: TextStyle(
-                                          fontSize: 18, color: Colors.black54),
-                                    ),
-                                  ),
-                                ),
-                              ListTile(
-                                title: Text(
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  noteData?['title'] ?? 'No Title',
-                                  style: const TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold),
-                                ),
-                                subtitle: Row(
-                                  children: [
-                                    const Icon(CupertinoIcons.calendar,
-                                        color: Color(0xFFF48FB1), size: 20),
-                                    const SizedBox(width: 5),
-                                    Text(formattedDate),
-                                  ],
-                                ),
-                                onTap: () => _viewFullNote(
-                                    noteData['id'] as String, noteData),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMediaGrid(List<String> mediaPaths) {
-    int mediaCount = mediaPaths.length;
+  // Media grid
+  Widget _buildMediaGrid(
+    List<String> mediaPaths,
+  ) {
+    final int mediaCount = mediaPaths.length;
 
     return GridView.builder(
       physics: const NeverScrollableScrollPhysics(),
@@ -242,74 +297,84 @@ class _lendingHomeScreenState extends State<lendingHomeScreen> {
       ),
       itemCount: mediaCount > 3 ? 4 : mediaCount,
       itemBuilder: (context, index) {
-        // Check if the file is an image or video
-        bool isVideo = mediaPaths[index].endsWith('.mp4');
+        final bool isVideo = mediaPaths[index].endsWith('.mp4');
 
+        // More overlay
         if (index == 3 && mediaCount > 3) {
           return Stack(
             fit: StackFit.expand,
             children: [
-              isVideo
-                  ? VideoPlayerWidget(
-                      mediaFile: File(mediaPaths[index]),
-                      isPlaying: isVideoPlaying,
-                      onVideoPlayPause: () {
-                        setState(() {
-                          isVideoPlaying = !isVideoPlaying;
-                        });
-                      },
-                    )
-                  : Image.file(
-                      File(mediaPaths[index]),
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: Colors.grey,
-                          child: const Center(child: Text('Invalid Image')),
-                        );
-                      },
-                    ),
+              _buildMedia(
+                mediaPaths[index],
+                isVideo,
+              ),
               Container(
                 color: Colors.black54,
                 child: const Center(
                   child: Text(
                     'More',
-                    style: TextStyle(color: Colors.white, fontSize: 20),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                    ),
                   ),
                 ),
               ),
             ],
           );
-        } else {
-          return isVideo
-              ? VideoPlayerWidget(
-                  mediaFile: File(mediaPaths[index]),
-                  isPlaying: isVideoPlaying,
-                  onVideoPlayPause: () {
-                    setState(() {
-                      isVideoPlaying = !isVideoPlaying;
-                    });
-                  },
-                )
-              : Image.file(
-                  File(mediaPaths[index]),
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.grey,
-                      child: const Center(child: Text('Invalid Image')),
-                    );
-                  },
-                );
         }
+
+        return _buildMedia(
+          mediaPaths[index],
+          isVideo,
+        );
+      },
+    );
+  }
+
+  // Build image/video
+  Widget _buildMedia(
+    String mediaPath,
+    bool isVideo,
+  ) {
+    if (isVideo) {
+      return Obx(
+        () => VideoPlayerWidget(
+          mediaFile: File(mediaPath),
+          isPlaying: controller.isVideoPlaying.value,
+          onVideoPlayPause: () {
+            controller.toggleVideo();
+          },
+        ),
+      );
+    }
+
+    return Image.file(
+      File(mediaPath),
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          color: Colors.grey,
+          child: const Center(
+            child: Text(
+              'Invalid Image',
+            ),
+          ),
+        );
       },
     );
   }
 }
 
+// ============================================================
+// VIDEO PLAYER
+// ============================================================
+
 class VideoPlayerWidget extends StatefulWidget {
   final File mediaFile;
+
   final bool isPlaying;
+
   final VoidCallback onVideoPlayPause;
 
   const VideoPlayerWidget({
@@ -329,36 +394,65 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.file(widget.mediaFile)
-      ..initialize().then((_) {
-        setState(() {});
-      });
+
+    _controller = VideoPlayerController.file(
+      widget.mediaFile,
+    )..initialize().then(
+        (_) {
+          if (mounted) {
+            setState(() {});
+          }
+        },
+      );
+  }
+
+  @override
+  void didUpdateWidget(
+    covariant VideoPlayerWidget oldWidget,
+  ) {
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.isPlaying) {
+      _controller.play();
+    } else {
+      _controller.pause();
+    }
   }
 
   @override
   void dispose() {
     _controller.dispose();
+
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return _controller.value.isInitialized
-        ? GestureDetector(
-            onTap: widget.onVideoPlayPause,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                AspectRatio(
-                  aspectRatio: _controller.value.aspectRatio,
-                  child: VideoPlayer(_controller),
-                ),
-                if (!widget.isPlaying)
-                  const Icon(Icons.play_circle_fill,
-                      color: Colors.white, size: 50),
-              ],
+    if (!_controller.value.isInitialized) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    return GestureDetector(
+      onTap: widget.onVideoPlayPause,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          AspectRatio(
+            aspectRatio: _controller.value.aspectRatio,
+            child: VideoPlayer(
+              _controller,
             ),
-          )
-        : const Center(child: CircularProgressIndicator());
+          ),
+          if (!widget.isPlaying)
+            const Icon(
+              Icons.play_circle_fill,
+              color: Colors.white,
+              size: 50,
+            ),
+        ],
+      ),
+    );
   }
 }

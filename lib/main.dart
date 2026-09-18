@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:lildairy/controllers/auth_controller.dart';
+import 'package:lildairy/controllers/login_controller.dart';
 import 'package:lildairy/screens/HomeScreen.dart';
 import 'package:lildairy/screens/login.dart';
 import 'package:lildairy/services/storage_service.dart';
@@ -26,9 +26,14 @@ class MyApp extends StatelessWidget {
       home: Obx(
         () {
           if (authController.isLoggedIn.value) {
-            return const NotesHomeScreen();
+            return NotesHomeScreen();
           }
+<<<<<<< HEAD
           return const LoginScreen();
+=======
+
+          return LoginScreen();
+>>>>>>> develop
         },
       ),
     );
