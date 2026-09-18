@@ -1,0 +1,94 @@
+# FVM — How to Use
+
+### 1. Install FVM
+
+```bash
+brew tap leoafarias/fvm
+brew install fvm
+```
+
+Check:
+
+```bash
+fvm --version
+```
+
+### 2. Go to your Flutter project
+
+```bash
+cd /path/to/your/project
+```
+
+### 3. Install the Flutter version you need
+
+For this project:
+
+```bash
+fvm install 3.41.6
+```
+
+### 4. Set the Flutter version for the project
+
+```bash
+fvm use 3.41.6
+```
+
+### 5. Check the version
+
+```bash
+fvm flutter --version
+```
+
+It should show:
+
+```text
+Flutter 3.41.6
+```
+
+### 6. Get dependencies
+
+```bash
+fvm flutter pub get
+```
+
+### 7. Run the project
+
+```bash
+fvm flutter run
+```
+
+### 8. Other Flutter commands
+
+Use `fvm flutter` instead of `flutter`:
+
+```bash
+fvm flutter clean
+fvm flutter pub get
+fvm flutter run
+fvm flutter test
+fvm flutter build apk
+fvm flutter build ios
+```
+
+### 9. When you clone the project on another PC
+
+After cloning:
+
+```bash
+cd your-project
+fvm install
+fvm flutter pub get
+fvm flutter run
+```
+
+FVM will use the Flutter version configured for that project.
+
+### Most important commands
+
+```bash
+fvm install 3.41.6
+fvm use 3.41.6
+fvm flutter --version
+fvm flutter pub get
+fvm flutter run
+```
