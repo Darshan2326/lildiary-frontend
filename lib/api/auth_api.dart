@@ -1,10 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:get/get_connect.dart';
 import 'package:lildairy/models/register_response.dart';
 
 import '../models/login_response.dart';
+import '../models/user.dart';
 import '../utils/api_constants.dart';
 import 'ApiClient/api_client.dart';
 
@@ -68,6 +68,33 @@ class AuthApi {
         'Logout failed: ${response.statusCode}. Response: ${response.body}',
       );
     }
+  }
+
+  Future<User> getCurrentUser({required String token}) async {
+    final response = await _apiClient.get(
+      ApiConstants.me,
+      headers: {
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+
+      if (data is! Map<String, dynamic>) {
+        throw const FormatException('User response is not a JSON object');
+      }
+
+      return User.fromJson(data);
+    }
+
+    if (response.statusCode == 401) {
+      throw Exception('Session expired or invalid token');
+    }
+
+    throw Exception(
+      'Could not load user: ${response.statusCode}. Response: ${response.body}',
+    );
   }
 
   Future<RegisterResponse> RegisterAPI({

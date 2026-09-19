@@ -4,6 +4,40 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class ApiClient {
+  Future<http.Response> get(
+    String url, {
+    Map<String, String>? headers,
+  }) async {
+    final uri = Uri.parse(url);
+    final requestHeaders = {
+      'Content-Type': 'application/json',
+      ...?headers,
+    };
+
+    try {
+      final response = await http
+          .get(uri, headers: requestHeaders)
+          .timeout(const Duration(seconds: 15));
+
+      _logResponse(
+        method: 'GET',
+        url: uri.toString(),
+        response: response,
+      );
+
+      return response;
+    } catch (error, stackTrace) {
+      _logError(
+        method: 'GET',
+        url: uri.toString(),
+        error: error,
+        stackTrace: stackTrace,
+      );
+
+      rethrow;
+    }
+  }
+
   Future<http.Response> post(
     String url,
     Map<String, dynamic> body, {

@@ -1,10 +1,10 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lildairy/services/storage_service.dart';
 import 'package:lildairy/screens/HomeScreen.dart';
 
 import '../api/auth_api.dart';
+import '../models/user.dart';
 
 class AuthController extends GetxController {
   final AuthApi _authApi = AuthApi();
@@ -14,6 +14,7 @@ class AuthController extends GetxController {
 
   final isLoggedIn = false.obs;
   final token = RxnString();
+  final currentUser = Rxn<User>();
 
   final identifierController = TextEditingController();
   final passwordController = TextEditingController();
@@ -55,6 +56,7 @@ class AuthController extends GetxController {
       );
 
       await login(result.accessToken);
+      await fetchCurrentUser();
 
       Get.offAll(() => NotesHomeScreen());
 
@@ -86,6 +88,20 @@ class AuthController extends GetxController {
   void loadUserData() {
     isLoggedIn.value = StorageService.isLoggedIn();
     token.value = StorageService.getToken();
+
+    if (isLoggedIn.value && token.value != null) {
+      fetchCurrentUser();
+    }
+  }
+
+  Future<void> fetchCurrentUser() async {
+    final currentToken = token.value;
+
+    if (currentToken == null || currentToken.isEmpty) {
+      return;
+    }
+
+    currentUser.value = await _authApi.getCurrentUser(token: currentToken);
   }
 
   Future<void> login(String newToken) async {
@@ -101,6 +117,7 @@ class AuthController extends GetxController {
 
     token.value = null;
     isLoggedIn.value = false;
+    currentUser.value = null;
   }
 
   Future<void> logoutAPI() async {

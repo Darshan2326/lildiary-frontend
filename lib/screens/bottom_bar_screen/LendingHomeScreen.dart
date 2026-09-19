@@ -52,10 +52,10 @@ class lendingHomeScreen extends StatelessWidget {
                       color: Colors.black38,
                     ),
                   ),
-                  Text(
-                    controller.userName.value.isEmpty
-                        ? 'Loading...'
-                        : controller.userName.value,
+                      Text(
+                        controller.userName.value.isEmpty
+                            ? 'Loading...'
+                            : controller.userName.value,
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -100,29 +100,25 @@ class lendingHomeScreen extends StatelessWidget {
 
               // Notes
               Expanded(
-                child: FutureBuilder<List<Map<String, dynamic>>>(
-                  future: Future.value(
-                    const <Map<String, dynamic>>[],
-                  ),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
+                child: Obx(
+                  () {
+                    if (controller.isLoading.value) {
                       return const Center(
                         child: CircularProgressIndicator(),
                       );
                     }
 
-                    return Obx(
-                      () {
-                        final notes = snapshot.data!.where(
-                          (noteData) {
-                            final title =
-                                noteData['title']?.toLowerCase() ?? '';
+                    final notes = controller.diaries.where(
+                      (diary) {
+                        final searchableText =
+                            '${diary.title ?? ''} ${diary.description ?? ''}'
+                                .toLowerCase();
 
-                            return title.contains(
-                              controller.searchQuery.value,
-                            );
-                          },
-                        ).toList();
+                        return searchableText.contains(
+                          controller.searchQuery.value,
+                        );
+                      },
+                    ).toList();
 
                         // No search result
                         if (notes.isEmpty &&
@@ -164,26 +160,22 @@ class lendingHomeScreen extends StatelessWidget {
                         return ListView.builder(
                           itemCount: notes.length,
                           itemBuilder: (context, index) {
-                            final noteData = notes[index];
-
-                            // Media paths
-                            final mediaPaths =
-                                noteData.containsKey('mediaPaths')
-                                    ? (noteData['mediaPaths'] as List<dynamic>)
-                                        .map(
-                                          (item) => item.toString(),
-                                        )
-                                        .toList()
-                                    : <String>[];
-
-                            // Date
-                            final formattedDate = DateFormat(
-                              'dd MMM, yyyy',
-                            ).format(
-                              DateTime.parse(
-                                noteData['timestamp'] as String,
-                              ),
+                            final diary = notes[index];
+                            final mediaPaths = diary.images ?? <String>[];
+                            final noteData = <String, dynamic>{
+                              'id': diary.id?.toString(),
+                              'title': diary.title,
+                              'description': diary.description,
+                              'mediaPaths': mediaPaths,
+                              'timestamp': diary.createdAt ??
+                                  DateTime.now().toIso8601String(),
+                            };
+                            final createdAt = DateTime.tryParse(
+                              diary.createdAt ?? '',
                             );
+                            final formattedDate = createdAt == null
+                                ? 'Date unavailable'
+                                : DateFormat('dd MMM, yyyy').format(createdAt);
 
                             return Card(
                               elevation: 5,
@@ -216,7 +208,7 @@ class lendingHomeScreen extends StatelessWidget {
                                   // Note information
                                   ListTile(
                                     title: Text(
-                                      noteData['title'] ?? 'No Title',
+                                      diary.title ?? 'No Title',
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
@@ -242,7 +234,7 @@ class lendingHomeScreen extends StatelessWidget {
                                     onTap: () {
                                       _viewFullNote(
                                         context,
-                                        noteData['id'] as String,
+                                        diary.id.toString(),
                                         noteData,
                                       );
                                     },
@@ -252,8 +244,6 @@ class lendingHomeScreen extends StatelessWidget {
                             );
                           },
                         );
-                      },
-                    );
                   },
                 ),
               ),
@@ -337,7 +327,7 @@ class lendingHomeScreen extends StatelessWidget {
     String mediaPath,
     bool isVideo,
   ) {
-    if (isVideo) {
+    if (isVideo && !mediaPath.startsWith('http')) {
       return Obx(
         () => VideoPlayerWidget(
           mediaFile: File(mediaPath),
@@ -349,19 +339,27 @@ class lendingHomeScreen extends StatelessWidget {
       );
     }
 
+    if (mediaPath.startsWith('http')) {
+      return Image.network(
+        mediaPath,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _invalidMedia(),
+      );
+    }
+
     return Image.file(
       File(mediaPath),
       fit: BoxFit.cover,
       errorBuilder: (context, error, stackTrace) {
-        return Container(
-          color: Colors.grey,
-          child: const Center(
-            child: Text(
-              'Invalid Image',
-            ),
-          ),
-        );
+        return _invalidMedia();
       },
+    );
+  }
+
+  Widget _invalidMedia() {
+    return Container(
+      color: Colors.grey,
+      child: const Center(child: Text('Invalid Image')),
     );
   }
 }
