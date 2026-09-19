@@ -1,12 +1,11 @@
-import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:lildairy/screens/FullScreenMediaViewer.dart';
+import 'package:lildairy/widget/smart_media_widget.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:video_player/video_player.dart';
-import 'EditNoteScreen.dart'; // Import the new edit screen
+import 'EditNoteScreen.dart';
 
 class NoteDetailScreen extends StatefulWidget {
   final String noteId;
@@ -38,6 +37,64 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
     }
   }
 
+  /// Builds a single media item for the carousel using SmartMediaWidget.
+  Widget _buildCarouselItem(
+      String rawMediaPath, int index, List<dynamic> mediaPaths) {
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 5.0),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            clipBehavior: Clip.hardEdge,
+            child: SmartMediaWidget(
+              mediaPath: rawMediaPath,
+              fit: BoxFit.cover,
+              isPlaying: _currentIndex == index,
+              onVideoPlayPause: (isPlaying) {
+                if (isPlaying) {
+                  setState(() {
+                    _currentIndex = index;
+                  });
+                }
+              },
+            ),
+          ),
+        ),
+        // Full screen expand icon button on top right of media
+        Positioned(
+          top: 8,
+          right: 12,
+          child: GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      FullScreenMediaViewer(mediaPath: rawMediaPath),
+                ),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Icon(
+                Icons.fullscreen,
+                color: Colors.white,
+                size: 22,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final mediaPaths = widget.noteData['mediaPaths'] as List<dynamic>?;
@@ -62,73 +119,16 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
               // Carousel Slider for Media (Images & Videos)
               if (mediaPaths != null && mediaPaths.isNotEmpty)
                 CarouselSlider(
-                  items: mediaPaths.map((mediaPath) {
-                    return GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                FullScreenMediaViewer(mediaPath: mediaPath),
-                          ),
-                        );
-                      },
-                      child: Builder(
-                        builder: (BuildContext context) {
-                          if (mediaPath.endsWith('.mp4')) {
-                            return Container(
-                              margin:
-                                  const EdgeInsets.symmetric(horizontal: 5.0),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: VideoPlayerWidget(
-                                mediaFile: File(mediaPath),
-                                isPlaying: _currentIndex ==
-                                    mediaPaths.indexOf(mediaPath),
-                                onVideoPlayPause: (isPlaying) {
-                                  setState(() {
-                                    if (isPlaying) {
-                                      _currentIndex =
-                                          mediaPaths.indexOf(mediaPath);
-                                    }
-                                  });
-                                },
-                              ),
-                            );
-                          } else {
-                            return Container(
-                              margin:
-                                  const EdgeInsets.symmetric(horizontal: 5.0),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Image.file(
-                                File(mediaPath),
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    color: Colors.grey,
-                                    child: const Center(
-                                        child: Text('Invalid Image')),
-                                  );
-                                },
-                              ),
-                            );
-                          }
-                        },
-                      ),
-                    );
+                  items: mediaPaths.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final mediaPath = entry.value as String;
+                    return _buildCarouselItem(mediaPath, index, mediaPaths);
                   }).toList(),
                   options: CarouselOptions(
                     height: 250.0,
                     enlargeCenterPage: true,
-                    enableInfiniteScroll: true,
-                    autoPlay: true,
-                    autoPlayInterval: const Duration(seconds: 7),
-                    autoPlayAnimationDuration:
-                        const Duration(milliseconds: 3000),
-                    autoPlayCurve: Curves.fastOutSlowIn,
+                    enableInfiniteScroll: mediaPaths.length > 1,
+                    autoPlay: false,
                     viewportFraction: 1,
                     onPageChanged: (index, reason) {
                       setState(() {
@@ -142,8 +142,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                 Center(
                   child: Container(
                     height: 250,
-                    color: Colors.grey[
-                        200], // Optional: You can change this to any color
+                    color: Colors.grey[200],
                     child: const Center(
                       child: Text(
                         'No Media',
@@ -175,16 +174,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                   const SizedBox(
                     width: 100,
                   ),
-                  // const Text('3/4'),
                   const SizedBox(width: 10),
-                  // SizedBox(
-                  //   width: 120,
-                  //   child: LinearProgressIndicator(
-                  //     value: 0.75,
-                  //     backgroundColor: Colors.grey[300],
-                  //     color: const Color(0xFFF48FB1),
-                  //   ),
-                  // ),
                 ],
               ),
               const SizedBox(
@@ -208,17 +198,34 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                       String title = widget.noteData['title'] ?? 'No Title';
                       String description =
                           widget.noteData['description'] ?? 'No Description';
-                      List<dynamic>? mediaPaths = widget.noteData['mediaPaths'];
+                      List<dynamic>? paths = widget.noteData['mediaPaths'];
 
                       String shareMessage = "$title\n\n$description";
 
                       try {
-                        if (mediaPaths != null && mediaPaths.isNotEmpty) {
-                          List<XFile> files =
-                              mediaPaths.map((path) => XFile(path)).toList();
-                          await Share.shareXFiles(files, text: shareMessage);
+                        final resolved = paths
+                                ?.map((p) => MediaUtils.resolvePath(p.toString()))
+                                .toList() ??
+                            [];
+                        final localFiles = resolved
+                            .where((p) =>
+                                !p.startsWith('http://') &&
+                                !p.startsWith('https://'))
+                            .map((p) => XFile(p))
+                            .toList();
+
+                        if (localFiles.isNotEmpty) {
+                          await Share.shareXFiles(localFiles,
+                              text: shareMessage);
                         } else {
-                          await Share.share(shareMessage);
+                          final urlList = resolved
+                              .where((p) =>
+                                  p.startsWith('http://') ||
+                                  p.startsWith('https://'))
+                              .join('\n');
+                          await Share.share(urlList.isNotEmpty
+                              ? '$shareMessage\n\n$urlList'
+                              : shareMessage);
                         }
                       } catch (e) {
                         print('Error while sharing: $e');
@@ -232,17 +239,34 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                       String title = widget.noteData['title'] ?? 'No Title';
                       String description =
                           widget.noteData['description'] ?? 'No Description';
-                      List<dynamic>? mediaPaths = widget.noteData['mediaPaths'];
+                      List<dynamic>? paths = widget.noteData['mediaPaths'];
 
                       String shareMessage = "$title\n\n$description";
 
                       try {
-                        if (mediaPaths != null && mediaPaths.isNotEmpty) {
-                          List<XFile> files =
-                              mediaPaths.map((path) => XFile(path)).toList();
-                          await Share.shareXFiles(files, text: shareMessage);
+                        final resolved = paths
+                                ?.map((p) => MediaUtils.resolvePath(p.toString()))
+                                .toList() ??
+                            [];
+                        final localFiles = resolved
+                            .where((p) =>
+                                !p.startsWith('http://') &&
+                                !p.startsWith('https://'))
+                            .map((p) => XFile(p))
+                            .toList();
+
+                        if (localFiles.isNotEmpty) {
+                          await Share.shareXFiles(localFiles,
+                              text: shareMessage);
                         } else {
-                          await Share.share(shareMessage);
+                          final urlList = resolved
+                              .where((p) =>
+                                  p.startsWith('http://') ||
+                                  p.startsWith('https://'))
+                              .join('\n');
+                          await Share.share(urlList.isNotEmpty
+                              ? '$shareMessage\n\n$urlList'
+                              : shareMessage);
                         }
                       } catch (e) {
                         print('Error while sharing: $e');
@@ -333,56 +357,5 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
         ),
       ),
     );
-  }
-}
-
-class VideoPlayerWidget extends StatefulWidget {
-  final File mediaFile;
-  final bool isPlaying;
-  final Function(bool) onVideoPlayPause;
-
-  const VideoPlayerWidget({
-    super.key,
-    required this.mediaFile,
-    required this.isPlaying,
-    required this.onVideoPlayPause,
-  });
-
-  @override
-  State<VideoPlayerWidget> createState() => _VideoPlayerWidgetState();
-}
-
-class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
-  late VideoPlayerController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = VideoPlayerController.file(widget.mediaFile)
-      ..initialize().then((_) {
-        setState(() {});
-      });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (widget.isPlaying) {
-      _controller.play();
-    } else {
-      _controller.pause();
-    }
-
-    return _controller.value.isInitialized
-        ? AspectRatio(
-            aspectRatio: _controller.value.aspectRatio,
-            child: VideoPlayer(_controller),
-          )
-        : const Center(child: CircularProgressIndicator());
   }
 }
