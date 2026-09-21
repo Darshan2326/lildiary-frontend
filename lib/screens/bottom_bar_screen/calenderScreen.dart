@@ -1,11 +1,10 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lildairy/controllers/calendarscreen_controller.dart';
 import 'package:lildairy/screens/NoteDetailsScreen.dart';
+import 'package:lildairy/widget/smart_media_widget.dart';
+import 'package:lottie/lottie.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'package:video_player/video_player.dart';
 
 class CalendarScreen extends StatelessWidget {
   const CalendarScreen({super.key});
@@ -86,38 +85,112 @@ class CalendarScreen extends StatelessWidget {
             const SizedBox(height: 10),
 
             // ==============================
-            // MEMORIES
+            // MEMORIES / DIARIES
             // ==============================
 
             Expanded(
               child: Obx(
                 () {
-                  final memories = controller.memoriesForSelectedDate;
-
-                  if (memories.isEmpty) {
+                  if (controller.isLoading.value) {
                     return const Center(
-                      child: Text(
-                        'No memories for this date',
+                      child: CircularProgressIndicator(),
+                    );
+                  }
+
+                  final hasError = controller.errorMessage.value.isNotEmpty &&
+                      !controller.errorMessage.value.contains('404') &&
+                      !controller.errorMessage.value
+                          .toLowerCase()
+                          .contains('no memories found');
+
+                  if (hasError) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.error_outline_rounded,
+                              color: Colors.redAccent,
+                              size: 48,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              controller.errorMessage.value
+                                  .replaceAll('Exception: ', ''),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.black54,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            ElevatedButton(
+                              onPressed: () {
+                                controller.fetchMemoriesForDate(
+                                  controller.selectedDate.value,
+                                );
+                              },
+                              child: const Text('Retry'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  final diaries = controller.diaries;
+
+                  if (diaries.isEmpty) {
+                    return Center(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Lottie.asset(
+                              'assets/animation/empty.json',
+                              width: 220,
+                              height: 220,
+                              fit: BoxFit.contain,
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'No memories found',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black54,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   }
 
                   return ListView.builder(
-                    itemCount: memories.length,
+                    itemCount: diaries.length,
                     itemBuilder: (context, index) {
-                      final memory = memories[index];
+                      final diary = diaries[index];
 
-                      final noteId = memory['id'];
+                      final noteId = diary.id?.toString() ?? '';
 
-                      final noteData = memory['data'];
+                      final mediaPaths = diary.images ?? <String>[];
 
-                      final mediaPaths =
-                          noteData['mediaPaths'] as List<dynamic>? ?? [];
-
-                      final title = noteData['title'] ?? 'No Title';
+                      final title = diary.title ?? 'No Title';
 
                       final description =
-                          noteData['description'] ?? 'No Description';
+                          diary.description ?? 'No Description';
+
+                      final noteData = <String, dynamic>{
+                        'id': noteId,
+                        'title': title,
+                        'description': description,
+                        'mediaPaths': mediaPaths,
+                        'timestamp': diary.createdAt ??
+                            DateTime.now().toIso8601String(),
+                      };
 
                       return Card(
                         elevation: 5,
@@ -125,30 +198,35 @@ class CalendarScreen extends StatelessWidget {
                           vertical: 8,
                           horizontal: 12,
                         ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
                         child: ListTile(
+                          contentPadding: const EdgeInsets.all(12),
                           title: Text(
                             title,
                             overflow: TextOverflow.ellipsis,
                             maxLines: 1,
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
+                              fontSize: 18,
                             ),
                           ),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              const SizedBox(height: 4),
                               Text(
                                 description,
-                              ),
-
-                              const SizedBox(
-                                height: 8,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
 
                               // Media
-                              if (mediaPaths.isNotEmpty)
+                              if (mediaPaths.isNotEmpty) ...[
+                                const SizedBox(height: 8),
                                 SizedBox(
-                                  height: 200,
+                                  height: 150,
                                   child: ListView.builder(
                                     scrollDirection: Axis.horizontal,
                                     itemCount: mediaPaths.length,
@@ -160,18 +238,24 @@ class CalendarScreen extends StatelessWidget {
 
                                       return Padding(
                                         padding: const EdgeInsets.only(
-                                          right: 4.0,
+                                          right: 6.0,
                                         ),
-                                        child: SizedBox(
-                                          width: 150,
-                                          child: _buildMediaPreview(
-                                            mediaPath.toString(),
+                                        child: ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          child: SizedBox(
+                                            width: 150,
+                                            height: 150,
+                                            child: _buildMediaPreview(
+                                              mediaPath.toString(),
+                                            ),
                                           ),
                                         ),
                                       );
                                     },
                                   ),
                                 ),
+                              ],
                             ],
                           ),
                           onTap: () {
@@ -215,106 +299,13 @@ class CalendarScreen extends StatelessWidget {
   }
 
   // ==============================
-  // CHECK IMAGE
-  // ==============================
-
-  bool _isImage(String path) {
-    const imageExtensions = [
-      'jpg',
-      'jpeg',
-      'png',
-      'gif',
-    ];
-
-    final extension = path.split('.').last.toLowerCase();
-
-    return imageExtensions.contains(
-      extension,
-    );
-  }
-
-  // ==============================
   // MEDIA PREVIEW
   // ==============================
 
   Widget _buildMediaPreview(String path) {
-    if (_isImage(path)) {
-      return Image.file(
-        File(path),
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            color: Colors.grey,
-            child: const Center(
-              child: Text(
-                'Invalid Image',
-              ),
-            ),
-          );
-        },
-      );
-    }
-
-    return VideoPreview(
-      path: path,
-    );
-  }
-}
-
-// ============================================================
-// VIDEO PREVIEW
-// ============================================================
-
-class VideoPreview extends StatefulWidget {
-  final String path;
-
-  const VideoPreview({
-    super.key,
-    required this.path,
-  });
-
-  @override
-  State<VideoPreview> createState() => _VideoPreviewState();
-}
-
-class _VideoPreviewState extends State<VideoPreview> {
-  late VideoPlayerController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _controller = VideoPlayerController.file(
-      File(widget.path),
-    )..initialize().then(
-        (_) {
-          if (mounted) {
-            setState(() {});
-          }
-        },
-      );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (!_controller.value.isInitialized) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
-    }
-
-    return AspectRatio(
-      aspectRatio: _controller.value.aspectRatio,
-      child: VideoPlayer(
-        _controller,
-      ),
+    return SmartMediaWidget(
+      mediaPath: path,
+      fit: BoxFit.cover,
     );
   }
 }
