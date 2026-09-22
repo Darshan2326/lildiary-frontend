@@ -75,4 +75,35 @@ void main() {
     expect(diary.userEmail, 'string');
     expect(diary.createdAt, '2026-09-22T00:13:21');
   });
+
+  test('Memories parsing from /memories API response', () {
+    const rawJson = '''
+    [
+      {
+        "id": 1,
+        "title": "September Recap",
+        "description": "Family moments in September",
+        "video_url": "https://pub-817856dee81e4f938a629260580cb9f7.r2.dev/memories/video1.mp4",
+        "thumbnail_url": "https://pub-817856dee81e4f938a629260580cb9f7.r2.dev/memories/thumb1.jpg",
+        "status": "completed",
+        "error_message": null,
+        "created_at": "2026-09-22T00:36:24.773Z"
+      }
+    ]
+    ''';
+
+    final decoded = jsonDecode(rawJson) as List<dynamic>;
+    final memories = decoded
+        .map((item) => Memories.fromJson(item as Map<String, dynamic>))
+        .toList();
+
+    expect(memories.length, 1);
+    expect(memories.first.id, 1);
+    expect(memories.first.title, 'September Recap');
+    expect(memories.first.description, 'Family moments in September');
+    expect(memories.first.videoUrl, contains('video1.mp4'));
+    expect(memories.first.thumbnailUrl, contains('thumb1.jpg'));
+    expect(memories.first.status, 'completed');
+    expect(memories.first.createdAt, '2026-09-22T00:36:24.773Z');
+  });
 }
