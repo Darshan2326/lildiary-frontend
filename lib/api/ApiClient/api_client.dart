@@ -90,6 +90,78 @@ class ApiClient {
     }
   }
 
+  Future<http.Response> postMultipart(
+    String url, {
+    Map<String, String>? fields,
+    List<http.MultipartFile>? files,
+    Map<String, String>? headers,
+  }) async {
+    final uri = Uri.parse(url);
+    final request = http.MultipartRequest('POST', uri);
+
+    if (headers != null) {
+      request.headers.addAll(headers);
+    }
+    if (fields != null) {
+      request.fields.addAll(fields);
+    }
+    if (files != null) {
+      request.files.addAll(files);
+    }
+
+    _logMultipartRequest(
+      method: 'POST (Multipart)',
+      url: uri.toString(),
+      headers: request.headers,
+      fields: request.fields,
+      fileCount: request.files.length,
+    );
+
+    try {
+      final streamedResponse = await request.send().timeout(
+            const Duration(seconds: 60),
+          );
+      final response = await http.Response.fromStream(streamedResponse);
+
+      _logResponse(
+        method: 'POST (Multipart)',
+        url: uri.toString(),
+        response: response,
+      );
+
+      return response;
+    } catch (error, stackTrace) {
+      _logError(
+        method: 'POST (Multipart)',
+        url: uri.toString(),
+        error: error,
+        stackTrace: stackTrace,
+      );
+
+      rethrow;
+    }
+  }
+
+  void _logMultipartRequest({
+    required String method,
+    required String url,
+    required Map<String, String> headers,
+    required Map<String, String> fields,
+    required int fileCount,
+  }) {
+    debugPrint('');
+    debugPrint('══════════════════════════════════════════════');
+    debugPrint('📤 API MULTIPART REQUEST');
+    debugPrint('══════════════════════════════════════════════');
+    debugPrint('Method     : $method');
+    debugPrint('URL        : $url');
+    debugPrint('Headers    : ${jsonEncode(headers)}');
+    debugPrint('Fields     : ${jsonEncode(fields)}');
+    debugPrint('Files Count: $fileCount');
+    debugPrint('══════════════════════════════════════════════');
+    debugPrint('');
+  }
+
   void _logRequest({
     required String method,
     required String url,

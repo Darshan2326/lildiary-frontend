@@ -40,4 +40,39 @@ void main() {
     expect(diaries.first.userEmail, 'string');
     expect(diaries.first.createdAt, '2026-09-19T11:22:47');
   });
+
+  test('Diaries parsing from diary/add_diary API response', () {
+    const rawJson = '''
+    {
+      "id": 12,
+      "title": "my daughter is very happy with her grand father",
+      "description": "my daughter is very happy with her grand father",
+      "images": [
+        "https://pub-817856dee81e4f938a629260580cb9f7.r2.dev/diaries/string/12/c4d4bed7bf68469583446bf5e1b873d2",
+        "https://pub-817856dee81e4f938a629260580cb9f7.r2.dev/diaries/string/12/095f9a8d21dc420f9d376ed28d40667e",
+        "https://pub-817856dee81e4f938a629260580cb9f7.r2.dev/diaries/string/12/45d02964a7f24edf8ccd1d17017672a7"
+      ],
+      "user_id": 1,
+      "user_email": "string",
+      "created_at": "2026-09-22T00:13:21",
+      "updated_at": "2026-09-22T00:13:36",
+      "deleted_at": null
+    }
+    ''';
+
+    final decoded = jsonDecode(rawJson) as Map<String, dynamic>;
+    final diary = Diaries.fromJson(decoded);
+
+    expect(diary.id, 12);
+    expect(diary.title, 'my daughter is very happy with her grand father');
+    expect(diary.description, 'my daughter is very happy with her grand father');
+    expect(diary.images?.length, 3);
+    expect(
+      diary.images?[0],
+      'https://pub-817856dee81e4f938a629260580cb9f7.r2.dev/diaries/string/12/c4d4bed7bf68469583446bf5e1b873d2',
+    );
+    expect(diary.userId, 1);
+    expect(diary.userEmail, 'string');
+    expect(diary.createdAt, '2026-09-22T00:13:21');
+  });
 }

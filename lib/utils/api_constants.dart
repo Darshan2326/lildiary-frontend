@@ -7,4 +7,5 @@ class ApiConstants {
 
   static const String register = "$baseUrl/register";
   static const String diaryByDate = "$baseUrl/diary/by_date";
+  static const String addDiary = "$baseUrl/diary/add_diary";
 }

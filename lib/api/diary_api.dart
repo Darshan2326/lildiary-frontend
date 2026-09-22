@@ -1,6 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:lildairy/models/user.dart';
 import 'package:lildairy/utils/api_constants.dart';
 
@@ -56,6 +59,112 @@ class DiaryApi {
 
     throw Exception(
       'Failed to load diaries: ${response.statusCode}. Response: ${response.body}',
+    );
+  }
+
+  static MediaType _getMediaTypeForFile(String path) {
+    final ext = path.toLowerCase().split('.').last.split('?').first;
+    switch (ext) {
+      // Images
+      case 'jpg':
+      case 'jpeg':
+        return MediaType('image', 'jpeg');
+      case 'png':
+        return MediaType('image', 'png');
+      case 'gif':
+        return MediaType('image', 'gif');
+      case 'webp':
+        return MediaType('image', 'webp');
+      case 'heic':
+        return MediaType('image', 'heic');
+      case 'heif':
+        return MediaType('image', 'heif');
+      case 'bmp':
+        return MediaType('image', 'bmp');
+
+      // Videos
+      case 'mp4':
+        return MediaType('video', 'mp4');
+      case 'mov':
+        return MediaType('video', 'quicktime');
+      case 'm4v':
+        return MediaType('video', 'x-m4v');
+      case 'avi':
+        return MediaType('video', 'x-msvideo');
+      case 'webm':
+        return MediaType('video', 'webm');
+      case 'mkv':
+        return MediaType('video', 'x-matroska');
+      case '3gp':
+        return MediaType('video', '3gpp');
+      case 'flv':
+        return MediaType('video', 'x-flv');
+
+      default:
+        return MediaType('application', 'octet-stream');
+    }
+  }
+
+  Future<Diaries> addDiary({
+    required String title,
+    required String description,
+    required List<File> files,
+    required String token,
+  }) async {
+    final List<http.MultipartFile> multipartFiles = [];
+
+    for (final file in files) {
+      final mediaType = _getMediaTypeForFile(file.path);
+      final multipartFile = await http.MultipartFile.fromPath(
+        'images',
+        file.path,
+        contentType: mediaType,
+      );
+      multipartFiles.add(multipartFile);
+    }
+
+    final response = await _apiClient.postMultipart(
+      ApiConstants.addDiary,
+      fields: {
+        'title': title,
+        'description': description,
+      },
+      files: multipartFiles,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'accept': '*/*',
+      },
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      try {
+        final decoded = jsonDecode(response.body);
+
+        if (decoded is! Map<String, dynamic>) {
+          throw const FormatException(
+              'Add diary response is not a JSON object');
+        }
+
+        final diary = Diaries.fromJson(decoded);
+        debugPrint('[DIARY] Created diary successfully with ID: ${diary.id}');
+        return diary;
+      } catch (error, stackTrace) {
+        debugPrint('[DIARY ERROR] Could not parse add diary response: $error');
+        debugPrint('[DIARY ERROR] Stack trace: $stackTrace');
+        throw Exception('Invalid response from server');
+      }
+    }
+
+    if (response.statusCode == 401) {
+      throw Exception('Session expired or unauthorized');
+    }
+
+    if (response.statusCode == 422) {
+      throw Exception('Validation error: ${response.body}');
+    }
+
+    throw Exception(
+      'Failed to add diary: ${response.statusCode}. Response: ${response.body}',
     );
   }
 }

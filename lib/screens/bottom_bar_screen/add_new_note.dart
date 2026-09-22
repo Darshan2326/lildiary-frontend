@@ -186,43 +186,46 @@ class addNewNote extends StatelessWidget {
 
               Padding(
                 padding: const EdgeInsets.all(8.0),
-                child: ElevatedButton(
-                  style: ButtonStyle(
-                    shape: WidgetStateProperty.all<RoundedRectangleBorder>(
-                      RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                          8.0,
-                        ),
-                        side: const BorderSide(
-                          color: Color(0xFF4FC3F7),
+                child: Obx(
+                  () => ElevatedButton(
+                    style: ButtonStyle(
+                      shape: WidgetStateProperty.all<RoundedRectangleBorder>(
+                        RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            8.0,
+                          ),
+                          side: const BorderSide(
+                            color: Color(0xFF4FC3F7),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  onPressed: controller.pickMedia,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 8,
+                    onPressed:
+                        controller.isLoading.value ? null : controller.pickMedia,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 8,
+                          ),
+                          child: Image.asset(
+                            "assets/logos/plus.png",
+                            height: 35,
+                          ),
                         ),
-                        child: Image.asset(
-                          "assets/logos/plus.png",
-                          height: 35,
+                        const SizedBox(
+                          width: 10,
                         ),
-                      ),
-                      const SizedBox(
-                        width: 10,
-                      ),
-                      const Text(
-                        "Add Pictures or Videos",
-                        style: TextStyle(
-                          fontSize: 20,
-                          color: Colors.black87,
+                        const Text(
+                          "Add Pictures or Videos",
+                          style: TextStyle(
+                            fontSize: 20,
+                            color: Colors.black87,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -306,7 +309,25 @@ class addNewNote extends StatelessWidget {
                   if (controller.isLoading.value) {
                     return const Padding(
                       padding: EdgeInsets.all(16),
-                      child: CircularProgressIndicator(),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Color(0xFF81D4FA),
+                            ),
+                          ),
+                          SizedBox(height: 12),
+                          Text(
+                            "Adding memories...",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black54,
+                            ),
+                          ),
+                        ],
+                      ),
                     );
                   }
 
