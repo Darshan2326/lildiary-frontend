@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lildairy/controllers/profile_controller.dart';
@@ -26,6 +24,10 @@ class ProfilePage extends StatelessWidget {
       appBar: AppBar(
         title: const Text(
           'My Profile',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
         ),
         centerTitle: true,
         elevation: 0,
@@ -33,235 +35,306 @@ class ProfilePage extends StatelessWidget {
         iconTheme: const IconThemeData(
           color: Colors.black,
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.blue),
+            onPressed: () => controller.loadUserDetails(),
+            tooltip: 'Refresh Profile',
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            const SizedBox(
-              height: 20,
-            ),
+      body: RefreshIndicator(
+        onRefresh: () => controller.loadUserDetails(),
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0),
+            child: Column(
+              children: [
+                const SizedBox(height: 20),
 
-            // ============================================
-            // PROFILE IMAGE
-            // ============================================
-
-            Obx(
-              () => GestureDetector(
-                onTap: controller.pickAndSaveImage,
-                child: Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 60,
-                      backgroundImage: controller.profileImage.value != null
-                          ? FileImage(
-                              controller.profileImage.value!,
-                            )
-                          : const AssetImage(
-                              'assets/logos/user2.png',
-                            ) as ImageProvider,
-                    ),
-
-                    // Edit icon
-                    const Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: CircleAvatar(
-                        radius: 18,
-                        backgroundColor: Colors.white,
-                        child: Icon(
-                          Icons.edit,
-                          color: Colors.blue,
+                // ============================================
+                // PROFILE IMAGE & AVATAR UPLOAD (POST /users/profile/image)
+                // ============================================
+                Obx(
+                  () => GestureDetector(
+                    onTap: controller.pickAndSaveImage,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.blue.shade200,
+                              width: 3,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.08),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: CircleAvatar(
+                            radius: 60,
+                            backgroundColor: Colors.grey.shade100,
+                            backgroundImage: _getProfileImage(controller),
+                          ),
                         ),
-                      ),
-                    ),
 
-                    // Loading indicator
-                    if (controller.isUploadingImage.value)
-                      const Positioned.fill(
-                        child: Center(
+                        // Edit Badge Icon
+                        Positioned(
+                          right: 4,
+                          bottom: 4,
+                          child: CircleAvatar(
+                            radius: 18,
+                            backgroundColor: Colors.blue.shade600,
+                            child: const Icon(
+                              Icons.camera_alt,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                        ),
+
+                        // Loading overlay during image upload
+                        if (controller.isUploadingImage.value)
+                          Positioned.fill(
+                            child: Container(
+                              decoration: const BoxDecoration(
+                                color: Colors.black38,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Center(
+                                child: CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // ============================================
+                // USER NAME & USERNAME & EMAIL DISPLAY
+                // ============================================
+                Obx(
+                  () => controller.isLoading.value
+                      ? const Padding(
+                          padding: EdgeInsets.all(8.0),
                           child: CircularProgressIndicator(),
+                        )
+                      : Column(
+                          children: [
+                            Text(
+                              controller.userName.value.isEmpty
+                                  ? 'No Name Set'
+                                  : controller.userName.value,
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            if (controller.userUsername.value.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4.0),
+                                child: Text(
+                                  '@${controller.userUsername.value}',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.blue.shade700,
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(height: 4),
+                            Text(
+                              controller.userEmail.value.isEmpty
+                                  ? 'No Email Set'
+                                  : controller.userEmail.value,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                  ],
                 ),
-              ),
-            ),
 
-            const SizedBox(
-              height: 20,
-            ),
+                const SizedBox(height: 30),
 
-            // ============================================
-            // USER NAME
-            // ============================================
+                // ============================================
+                // PROFILE WORKFLOW OPTIONS
+                // ============================================
 
-            Obx(
-              () => Text(
-                controller.userName.value.isEmpty
-                    ? 'Loading...'
-                    : controller.userName.value,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+                // 1. Edit Profile Information (PATCH /users/profile)
+                _buildProfileOption(
+                  icon: Icons.person_outline,
+                  title: 'Edit Profile Information',
+                  subtitle: 'Update full name and username',
+                  onTap: () => _showEditProfileDialog(context, controller),
                 ),
-              ),
-            ),
 
-            // ============================================
-            // USER EMAIL
-            // ============================================
-
-            Obx(
-              () => Text(
-                controller.userEmail.value.isEmpty
-                    ? 'Loading...'
-                    : controller.userEmail.value,
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
+                // 2. Change Email Address (POST /email/request & verify)
+                _buildProfileOption(
+                  icon: Icons.mark_email_unread_outlined,
+                  title: 'Change Email Address',
+                  subtitle: 'Verify & update email with OTP',
+                  onTap: () => _showChangeEmailDialog(context, controller),
                 ),
-              ),
-            ),
 
-            const SizedBox(
-              height: 30,
-            ),
+                // 3. Memories Navigation
+                _buildProfileOption(
+                  icon: Icons.photo_library_outlined,
+                  title: 'Memories',
+                  subtitle: 'View your memory gallery',
+                  onTap: () {
+                    Get.to(() => const Memoriesscreen());
+                  },
+                ),
 
-            // ============================================
-            // PROFILE OPTIONS
-            // ============================================
+                // 4. About Us Navigation
+                _buildProfileOption(
+                  icon: Icons.info_outline,
+                  title: 'About Us',
+                  subtitle: 'Learn more about LilDiary',
+                  onTap: () {
+                    Get.to(() => AboutUsScreen());
+                  },
+                ),
 
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-              ),
-              child: Column(
-                children: [
-                  // Change Password
-                  _buildProfileOption(
-                    icon: Icons.lock,
-                    title: 'Change Password',
-                    onTap: () {
-                      controller.sendPasswordResetEmail();
-                    },
-                  ),
+                // 5. Delete Account (DELETE /users/profile with password)
+                _buildProfileOption(
+                  icon: Icons.delete_forever_outlined,
+                  title: 'Delete Account',
+                  subtitle: 'Deactivate account permanently',
+                  titleColor: Colors.red.shade700,
+                  iconColor: Colors.red.shade700,
+                  onTap: () => _showDeleteAccountDialog(context, controller),
+                ),
 
-                  // Memories
-                  _buildProfileOption(
-                    icon: Icons.image,
-                    title: 'Memories',
-                    onTap: () {
-                      Get.to(
-                        () => const Memoriesscreen(),
-                      );
-                    },
-                  ),
+                const SizedBox(height: 30),
 
-                  // Rate Us
-                  _buildProfileOption(
-                    icon: Icons.star,
-                    title: 'Rate Us',
-                    onTap: () {
-                      // TODO:
-                      // Implement rate us functionality
-                    },
-                  ),
-
-                  // About Us
-                  _buildProfileOption(
-                    icon: Icons.info,
-                    title: 'About Us',
-                    onTap: () {
-                      Get.to(
-                        () => AboutUsScreen(),
-                      );
-                    },
-                  ),
-
-                  // Delete Account
-                  _buildProfileOption(
-                    icon: Icons.delete_forever,
-                    title: 'Delete Account',
-                    onTap: () {
-                      _confirmDeleteDialog(
-                        controller,
-                      );
-                    },
-                  ),
-
-                  const SizedBox(
-                    height: 30,
-                  ),
-
-                  // ========================================
-                  // LOGOUT BUTTON
-                  // ========================================
-
-                  ElevatedButton(
-                    onPressed: () {
-                      _confirmLogOutDialog(
-                        controller,
-                      );
-                    },
+                // ============================================
+                // LOGOUT BUTTON (POST /logout)
+                // ============================================
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _showLogoutDialog(context, controller),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
+                      backgroundColor: Colors.blue.shade600,
+                      elevation: 2,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                          10,
-                        ),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 50,
-                        vertical: 15,
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text(
+                    icon: const Icon(
+                      Icons.logout,
+                      color: Colors.white,
+                    ),
+                    label: const Text(
                       'Log Out',
                       style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
                     ),
                   ),
+                ),
 
-                  const SizedBox(
-                    height: 15,
-                  ),
-                ],
-              ),
+                const SizedBox(height: 30),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
   // ============================================
-  // PROFILE OPTION
+  // IMAGE PROVIDER HELPER
+  // ============================================
+
+  ImageProvider _getProfileImage(ProfileController controller) {
+    if (controller.profileImage.value != null) {
+      return FileImage(controller.profileImage.value!);
+    }
+
+    if (controller.profileImageUrl.value.isNotEmpty) {
+      return NetworkImage(controller.profileImageUrl.value);
+    }
+
+    return const AssetImage('assets/logos/user2.png');
+  }
+
+  // ============================================
+  // PROFILE OPTION CARD BUILDER
   // ============================================
 
   Widget _buildProfileOption({
     required IconData icon,
     required String title,
+    String? subtitle,
     required VoidCallback onTap,
+    Color titleColor = Colors.black87,
+    Color iconColor = Colors.blue,
   }) {
     return Card(
-      margin: const EdgeInsets.only(
-        bottom: 15,
-      ),
+      margin: const EdgeInsets.only(bottom: 14),
+      elevation: 1,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: ListTile(
-        leading: Icon(
-          icon,
-          color: Colors.blue,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 4,
+        ),
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: iconColor.withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            icon,
+            color: iconColor,
+            size: 22,
+          ),
         ),
         title: Text(
           title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: titleColor,
+          ),
         ),
+        subtitle: subtitle != null
+            ? Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade600,
+                ),
+              )
+            : null,
         trailing: const Icon(
           Icons.arrow_forward_ios,
           size: 16,
+          color: Colors.grey,
         ),
         onTap: onTap,
       ),
@@ -269,161 +342,346 @@ class ProfilePage extends StatelessWidget {
   }
 
   // ============================================
-  // DELETE CONFIRMATION
+  // DIALOG: EDIT PROFILE INFO (PATCH /users/profile)
   // ============================================
 
-  Future<void> _confirmDeleteDialog(
+  void _showEditProfileDialog(
+    BuildContext context,
     ProfileController controller,
-  ) async {
-    final bool? confirmDelete = await Get.dialog<bool>(
+  ) {
+    final nameController = TextEditingController(
+      text: controller.userName.value,
+    );
+    final usernameController = TextEditingController(
+      text: controller.userUsername.value,
+    );
+
+    Get.dialog(
       AlertDialog(
-        title: const Text(
-          'Confirm Account Deletion',
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
         ),
-        content: const Text(
-          'Are you sure you want to delete your account?',
+        title: const Text('Edit Profile'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: 'Full Name',
+                prefixIcon: Icon(Icons.person),
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: usernameController,
+              decoration: const InputDecoration(
+                labelText: 'Username',
+                prefixIcon: Icon(Icons.alternate_email),
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
         ),
         actions: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Cancel
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      10,
-                    ),
-                  ),
-                ),
-                onPressed: () {
-                  Get.back(
-                    result: false,
-                  );
-                },
-                child: const Text(
-                  'Cancel',
-                  style: TextStyle(
-                    color: Color(
-                      0xFF81D4FA,
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(
-                width: 20,
-              ),
-
-              // Delete
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(
-                    0xFF81D4FA,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      10,
-                    ),
-                  ),
-                ),
-                onPressed: () {
-                  Get.back(
-                    result: true,
-                  );
-                },
-                child: const Text(
-                  'Delete',
-                  style: TextStyle(
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ],
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Cancel'),
+          ),
+          Obx(
+            () => ElevatedButton(
+              onPressed: controller.isUpdatingProfile.value
+                  ? null
+                  : () async {
+                      final success = await controller.updateProfileInfo(
+                        name: nameController.text,
+                        username: usernameController.text,
+                      );
+                      if (success) {
+                        Get.back();
+                      }
+                    },
+              child: controller.isUpdatingProfile.value
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Save'),
+            ),
           ),
         ],
       ),
     );
-
-    if (confirmDelete == true) {
-      await controller.deleteAccount();
-    }
   }
 
   // ============================================
-  // LOGOUT CONFIRMATION
+  // DIALOG: SECURE EMAIL CHANGE WORKFLOW (2-STEP OTP)
   // ============================================
 
-  Future<void> _confirmLogOutDialog(
+  void _showChangeEmailDialog(
+    BuildContext context,
     ProfileController controller,
-  ) async {
-    await Get.dialog<void>(
+  ) {
+    final newEmailController = TextEditingController();
+
+    Get.dialog(
       AlertDialog(
-        title: const Center(
-          child: Text(
-            'Confirm Logout...',
-          ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
         ),
-        content: const Text(
-          'Are you sure you want to Logout your account?',
+        title: const Text('Request Email Change'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Current Email: ${controller.userEmail.value}',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey.shade700,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: newEmailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: 'New Email Address',
+                prefixIcon: Icon(Icons.email),
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
         ),
         actions: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Cancel
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      10,
-                    ),
-                  ),
-                ),
-                onPressed: () {
-                  Get.back();
-                },
-                child: const Text(
-                  'Cancel',
-                  style: TextStyle(
-                    color: Color(
-                      0xFF81D4FA,
-                    ),
-                  ),
-                ),
-              ),
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Cancel'),
+          ),
+          Obx(
+            () => ElevatedButton(
+              onPressed: controller.isSendingOtp.value
+                  ? null
+                  : () async {
+                      final newEmail = newEmailController.text.trim();
+                      if (newEmail.isEmpty || !newEmail.contains('@')) {
+                        Get.snackbar('Invalid Email', 'Please enter a valid email');
+                        return;
+                      }
 
-              const SizedBox(
-                width: 20,
-              ),
+                      final success = await controller.requestEmailChangeOTP(newEmail);
+                      if (success) {
+                        Get.back();
+                        _showVerifyOtpDialog(context, controller, newEmail);
+                      }
+                    },
+              child: controller.isSendingOtp.value
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Send OTP'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-              // Yes
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(
-                    0xFF81D4FA,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      10,
+  void _showVerifyOtpDialog(
+    BuildContext context,
+    ProfileController controller,
+    String newEmail,
+  ) {
+    final otpController = TextEditingController();
+
+    Get.dialog(
+      AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Text('Verify Email OTP'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Enter the 6-digit OTP code sent to:\n$newEmail',
+              style: const TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: otpController,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 20,
+                letterSpacing: 8,
+                fontWeight: FontWeight.bold,
+              ),
+              decoration: const InputDecoration(
+                labelText: 'OTP Code',
+                counterText: '',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Cancel'),
+          ),
+          Obx(
+            () => ElevatedButton(
+              onPressed: controller.isVerifyingOtp.value
+                  ? null
+                  : () async {
+                      final otp = otpController.text.trim();
+                      if (otp.length < 4) {
+                        Get.snackbar('Invalid OTP', 'Please enter valid OTP code');
+                        return;
+                      }
+
+                      final success = await controller.verifyEmailChangeOTP(
+                        newEmail: newEmail,
+                        otp: otp,
+                      );
+                      if (success) {
+                        Get.back();
+                      }
+                    },
+              child: controller.isVerifyingOtp.value
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Verify & Update'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================
+  // DIALOG: DELETE ACCOUNT (DELETE /users/profile with Password)
+  // ============================================
+
+  void _showDeleteAccountDialog(
+    BuildContext context,
+    ProfileController controller,
+  ) {
+    final passwordController = TextEditingController();
+
+    Get.dialog(
+      AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Text(
+          'Delete Account',
+          style: TextStyle(color: Colors.red),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'This action will deactivate your profile and invalidate active sessions. Please enter your account password to confirm:',
+              style: TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: passwordController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Password',
+                prefixIcon: Icon(Icons.lock_outline),
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Cancel'),
+          ),
+          Obx(
+            () => ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade600,
+              ),
+              onPressed: controller.isDeletingAccount.value
+                  ? null
+                  : () async {
+                      final password = passwordController.text;
+                      if (password.isEmpty) {
+                        Get.snackbar('Required', 'Password is required to delete account');
+                        return;
+                      }
+
+                      Get.back();
+                      await controller.deleteAccount(password);
+                    },
+              child: controller.isDeletingAccount.value
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text(
+                      'Delete Account',
+                      style: TextStyle(color: Colors.white),
                     ),
-                  ),
-                ),
-                onPressed: () async {
-                  Get.back();
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-                  await controller.logout();
-                },
-                child: const Text(
-                  'Yes',
-                  style: TextStyle(
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ],
+  // ============================================
+  // DIALOG: LOGOUT CONFIRMATION (POST /logout)
+  // ============================================
+
+  void _showLogoutDialog(
+    BuildContext context,
+    ProfileController controller,
+  ) {
+    Get.dialog(
+      AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Text('Confirm Logout'),
+        content: const Text('Are you sure you want to log out of your account?'),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue.shade600,
+            ),
+            onPressed: () async {
+              Get.back();
+              await controller.logout();
+            },
+            child: const Text(
+              'Log Out',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),

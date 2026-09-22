@@ -90,6 +90,53 @@ class ApiClient {
     }
   }
 
+  Future<http.Response> patch(
+    String url,
+    Map<String, dynamic> body, {
+    Map<String, String>? headers,
+  }) async {
+    final uri = Uri.parse(url);
+    final requestHeaders = {
+      'Content-Type': 'application/json',
+      ...?headers,
+    };
+    final encodedBody = jsonEncode(body);
+
+    _logRequest(
+      method: 'PATCH',
+      url: uri.toString(),
+      headers: requestHeaders,
+      body: body,
+    );
+
+    try {
+      final response = await http
+          .patch(
+            uri,
+            headers: requestHeaders,
+            body: encodedBody,
+          )
+          .timeout(const Duration(seconds: 15));
+
+      _logResponse(
+        method: 'PATCH',
+        url: uri.toString(),
+        response: response,
+      );
+
+      return response;
+    } catch (error, stackTrace) {
+      _logError(
+        method: 'PATCH',
+        url: uri.toString(),
+        error: error,
+        stackTrace: stackTrace,
+      );
+
+      rethrow;
+    }
+  }
+
   Future<http.Response> postMultipart(
     String url, {
     Map<String, String>? fields,
@@ -133,6 +180,109 @@ class ApiClient {
     } catch (error, stackTrace) {
       _logError(
         method: 'POST (Multipart)',
+        url: uri.toString(),
+        error: error,
+        stackTrace: stackTrace,
+      );
+
+      rethrow;
+    }
+  }
+
+  Future<http.Response> patchMultipart(
+    String url, {
+    Map<String, String>? fields,
+    List<http.MultipartFile>? files,
+    Map<String, String>? headers,
+  }) async {
+    final uri = Uri.parse(url);
+    final request = http.MultipartRequest('PATCH', uri);
+
+    if (headers != null) {
+      request.headers.addAll(headers);
+    }
+    if (fields != null) {
+      request.fields.addAll(fields);
+    }
+    if (files != null) {
+      request.files.addAll(files);
+    }
+
+    _logMultipartRequest(
+      method: 'PATCH (Multipart)',
+      url: uri.toString(),
+      headers: request.headers,
+      fields: request.fields,
+      fileCount: request.files.length,
+    );
+
+    try {
+      final streamedResponse = await request.send().timeout(
+            const Duration(seconds: 60),
+          );
+      final response = await http.Response.fromStream(streamedResponse);
+
+      _logResponse(
+        method: 'PATCH (Multipart)',
+        url: uri.toString(),
+        response: response,
+      );
+
+      return response;
+    } catch (error, stackTrace) {
+      _logError(
+        method: 'PATCH (Multipart)',
+        url: uri.toString(),
+        error: error,
+        stackTrace: stackTrace,
+      );
+
+      rethrow;
+    }
+  }
+
+  Future<http.Response> delete(
+    String url, {
+    Map<String, dynamic>? body,
+    Map<String, String>? headers,
+  }) async {
+    final uri = Uri.parse(url);
+    final request = http.Request('DELETE', uri);
+
+    if (headers != null) {
+      request.headers.addAll(headers);
+    }
+    if (body != null) {
+      request.headers['Content-Type'] = 'application/json';
+      final logBody = Map<String, dynamic>.from(body);
+      if (logBody.containsKey('password')) {
+        logBody['password'] = '***';
+      }
+      _logRequest(
+        method: 'DELETE',
+        url: uri.toString(),
+        headers: request.headers,
+        body: logBody,
+      );
+      request.body = jsonEncode(body);
+    }
+
+    try {
+      final streamedResponse = await request.send().timeout(
+            const Duration(seconds: 15),
+          );
+      final response = await http.Response.fromStream(streamedResponse);
+
+      _logResponse(
+        method: 'DELETE',
+        url: uri.toString(),
+        response: response,
+      );
+
+      return response;
+    } catch (error, stackTrace) {
+      _logError(
+        method: 'DELETE',
         url: uri.toString(),
         error: error,
         stackTrace: stackTrace,

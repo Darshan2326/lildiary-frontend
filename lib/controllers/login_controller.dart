@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:lildairy/screens/login.dart';
 import 'package:lildairy/services/storage_service.dart';
 import 'package:lildairy/screens/HomeScreen.dart';
 
@@ -118,6 +119,8 @@ class AuthController extends GetxController {
     token.value = null;
     isLoggedIn.value = false;
     currentUser.value = null;
+
+    Get.offAll(() => LoginScreen());
   }
 
   Future<void> logoutAPI() async {

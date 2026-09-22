@@ -1,14 +1,13 @@
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:lildairy/api/profile_api.dart';
 import 'package:lildairy/controllers/login_controller.dart';
+import 'package:lildairy/models/user.dart';
 
 class ProfileController extends GetxController {
-  // ============================================
-  // USER ID
-  // ============================================
-
   final String userId;
 
   ProfileController({
@@ -16,11 +15,19 @@ class ProfileController extends GetxController {
   });
 
   // ============================================
-  // AUTH CONTROLLER
+  // API & AUTH SERVICES
   // ============================================
 
-  final AuthController authController =
-      Get.find<AuthController>();
+  final ProfileApi _profileApi = ProfileApi();
+
+  AuthController get authController {
+    if (Get.isRegistered<AuthController>()) {
+      return Get.find<AuthController>();
+    }
+    return Get.put(AuthController());
+  }
+
+  String? get token => authController.token.value;
 
   // ============================================
   // IMAGE PICKER
@@ -29,22 +36,27 @@ class ProfileController extends GetxController {
   final ImagePicker imagePicker = ImagePicker();
 
   // ============================================
-  // USER DATA
+  // OBSERVED USER STATE
   // ============================================
 
+  final Rxn<User> user = Rxn<User>();
   final Rxn<File> profileImage = Rxn<File>();
 
   final RxString userName = ''.obs;
-
+  final RxString userUsername = ''.obs;
   final RxString userEmail = ''.obs;
+  final RxString profileImageUrl = ''.obs;
 
   // ============================================
-  // LOADING
+  // LOADING STATES
   // ============================================
 
   final RxBool isLoading = false.obs;
-
   final RxBool isUploadingImage = false.obs;
+  final RxBool isUpdatingProfile = false.obs;
+  final RxBool isSendingOtp = false.obs;
+  final RxBool isVerifyingOtp = false.obs;
+  final RxBool isDeletingAccount = false.obs;
 
   // ============================================
   // INIT
@@ -53,98 +65,97 @@ class ProfileController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-
-    loadUserEmail();
     loadUserDetails();
-    loadProfileImage();
   }
 
   // ============================================
-  // LOAD PROFILE IMAGE
-  // ============================================
-
-  Future<void> loadProfileImage() async {
-    try {
-      // TODO:
-      // Add your API profile image loading here.
-
-      // Example:
-      //
-      // profileImageUrl.value = response['profile_image'];
-    } catch (e) {
-      print('Profile image loading error: $e');
-    }
-  }
-
-  // ============================================
-  // LOAD USER EMAIL
-  // ============================================
-
-  Future<void> loadUserEmail() async {
-    try {
-      // TODO:
-      // Replace with your API response.
-
-      userEmail.value = 'API email';
-    } catch (e) {
-      print('User email loading error: $e');
-    }
-  }
-
-  // ============================================
-  // LOAD USER DETAILS
+  // LOAD USER DETAILS (GET /me or GET /users/profile)
   // ============================================
 
   Future<void> loadUserDetails() async {
+    final currentToken = token;
+    if (currentToken == null || currentToken.isEmpty) {
+      debugPrint('[PROFILE] No token available, skipping profile fetch');
+      return;
+    }
+
     try {
       isLoading.value = true;
+      debugPrint('[PROFILE] Fetching user profile...');
 
-      // TODO:
-      // Replace these with your API response.
+      User fetchedUser;
+      try {
+        fetchedUser = await _profileApi.getMeProfile(token: currentToken);
+      } catch (_) {
+        fetchedUser = await _profileApi.getProfile(token: currentToken);
+      }
 
-      userName.value = 'API user';
-      userEmail.value = 'API email';
+      user.value = fetchedUser;
+      userName.value = fetchedUser.name ?? 'User';
+      userUsername.value = fetchedUser.username ?? '';
+      userEmail.value = fetchedUser.email ?? '';
+      profileImageUrl.value = fetchedUser.profileImageUrl ?? '';
     } catch (e) {
-      print('User details loading error: $e');
+      debugPrint('[PROFILE ERROR] Failed to load user details: $e');
+      Get.snackbar(
+        'Profile Error',
+        'Could not load profile details: ${e.toString()}',
+        snackPosition: SnackPosition.BOTTOM,
+      );
     } finally {
       isLoading.value = false;
     }
   }
 
   // ============================================
-  // PICK PROFILE IMAGE
+  // UPLOAD PROFILE AVATAR (POST /users/profile/image)
   // ============================================
 
   Future<void> pickAndSaveImage() async {
+    final currentToken = token;
+    if (currentToken == null || currentToken.isEmpty) {
+      Get.snackbar('Auth Error', 'You must be logged in to update avatar');
+      return;
+    }
+
     try {
+      final XFile? pickedFile = await imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
+
+      if (pickedFile == null) return;
+
+      final file = File(pickedFile.path);
+      profileImage.value = file;
+
       isUploadingImage.value = true;
 
-      final XFile? pickedFile =
-          await imagePicker.pickImage(
-        source: ImageSource.gallery,
+      final updatedUser = await _profileApi.uploadProfileImage(
+        token: currentToken,
+        image: file,
       );
 
-      if (pickedFile == null) {
-        return;
+      user.value = updatedUser;
+      if (updatedUser.profileImageUrl != null && updatedUser.profileImageUrl!.isNotEmpty) {
+        profileImageUrl.value = updatedUser.profileImageUrl!;
       }
-
-      profileImage.value = File(
-        pickedFile.path,
-      );
 
       Get.snackbar(
         'Success',
-        'Profile image updated successfully',
+        'Profile picture updated successfully',
         snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.green.shade600,
+        colorText: Colors.white,
       );
-
-      // TODO:
-      // Upload image to your API here.
     } catch (e) {
+      debugPrint('[PROFILE ERROR] Image upload failed: $e');
       Get.snackbar(
-        'Error',
-        'Failed to update image: $e',
+        'Upload Failed',
+        e.toString().replaceAll('Exception: ', ''),
         snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.shade600,
+        colorText: Colors.white,
       );
     } finally {
       isUploadingImage.value = false;
@@ -152,60 +163,202 @@ class ProfileController extends GetxController {
   }
 
   // ============================================
-  // PASSWORD RESET
+  // UPDATE PROFILE INFO (PATCH /users/profile)
   // ============================================
 
-  Future<void> sendPasswordResetEmail() async {
-    Get.snackbar(
-      'Password Reset',
-      'Password reset is unavailable in offline mode',
-      snackPosition: SnackPosition.BOTTOM,
-    );
+  Future<bool> updateProfileInfo({
+    required String name,
+    required String username,
+  }) async {
+    final currentToken = token;
+    if (currentToken == null || currentToken.isEmpty) {
+      Get.snackbar('Auth Error', 'You must be logged in to update profile');
+      return false;
+    }
 
-    // TODO:
-    // Connect your password reset API here.
-  }
-
-  // ============================================
-  // DELETE ACCOUNT
-  // ============================================
-
-  Future<void> deleteAccount() async {
     try {
-      Get.snackbar(
-        'Delete Account',
-        'Delete action is ready for API integration',
-        snackPosition: SnackPosition.BOTTOM,
+      isUpdatingProfile.value = true;
+
+      final updatedUser = await _profileApi.updateProfile(
+        token: currentToken,
+        name: name,
+        username: username,
       );
 
-      // Your existing AuthController logout
-      await authController.logout();
+      user.value = updatedUser;
+      userName.value = updatedUser.name ?? name;
+      userUsername.value = updatedUser.username ?? username;
+
+      Get.snackbar(
+        'Success',
+        'Profile updated successfully',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.green.shade600,
+        colorText: Colors.white,
+      );
+      return true;
     } catch (e) {
-      print('Error deleting account: $e');
-
+      debugPrint('[PROFILE ERROR] Update profile failed: $e');
       Get.snackbar(
-        'Error',
-        'Failed to delete account',
+        'Update Failed',
+        e.toString().replaceAll('Exception: ', ''),
         snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.shade600,
+        colorText: Colors.white,
       );
+      return false;
+    } finally {
+      isUpdatingProfile.value = false;
     }
   }
 
   // ============================================
-  // LOGOUT
+  // REQUEST EMAIL CHANGE OTP (POST /users/profile/email/request)
+  // ============================================
+
+  Future<bool> requestEmailChangeOTP(String newEmail) async {
+    final currentToken = token;
+    if (currentToken == null || currentToken.isEmpty) {
+      Get.snackbar('Auth Error', 'You must be logged in to change email');
+      return false;
+    }
+
+    try {
+      isSendingOtp.value = true;
+
+      final message = await _profileApi.requestEmailChange(
+        token: currentToken,
+        newEmail: newEmail,
+      );
+
+      Get.snackbar(
+        'OTP Sent',
+        message,
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.blue.shade700,
+        colorText: Colors.white,
+      );
+      return true;
+    } catch (e) {
+      debugPrint('[PROFILE ERROR] Email change request failed: $e');
+      Get.snackbar(
+        'Request Failed',
+        e.toString().replaceAll('Exception: ', ''),
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.shade600,
+        colorText: Colors.white,
+      );
+      return false;
+    } finally {
+      isSendingOtp.value = false;
+    }
+  }
+
+  // ============================================
+  // VERIFY EMAIL CHANGE OTP (POST /users/profile/email/verify)
+  // ============================================
+
+  Future<bool> verifyEmailChangeOTP({
+    required String newEmail,
+    required String otp,
+  }) async {
+    final currentToken = token;
+    if (currentToken == null || currentToken.isEmpty) {
+      Get.snackbar('Auth Error', 'You must be logged in to verify email');
+      return false;
+    }
+
+    try {
+      isVerifyingOtp.value = true;
+
+      final updatedUser = await _profileApi.verifyEmailChange(
+        token: currentToken,
+        newEmail: newEmail,
+        otp: otp,
+      );
+
+      user.value = updatedUser;
+      userEmail.value = updatedUser.email ?? newEmail;
+
+      Get.snackbar(
+        'Success',
+        'Email updated successfully to ${userEmail.value}',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.green.shade600,
+        colorText: Colors.white,
+      );
+      return true;
+    } catch (e) {
+      debugPrint('[PROFILE ERROR] Email verification failed: $e');
+      Get.snackbar(
+        'Verification Failed',
+        e.toString().replaceAll('Exception: ', ''),
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.shade600,
+        colorText: Colors.white,
+      );
+      return false;
+    } finally {
+      isVerifyingOtp.value = false;
+    }
+  }
+
+  // ============================================
+  // DELETE ACCOUNT (DELETE /users/profile)
+  // ============================================
+
+  Future<void> deleteAccount(String password) async {
+    final currentToken = token;
+    if (currentToken == null || currentToken.isEmpty) {
+      Get.snackbar('Auth Error', 'You must be logged in to delete account');
+      return;
+    }
+
+    try {
+      isDeletingAccount.value = true;
+
+      await _profileApi.deleteProfile(
+        token: currentToken,
+        password: password,
+      );
+
+      Get.snackbar(
+        'Account Deleted',
+        'Your account has been deactivated successfully',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.orange.shade800,
+        colorText: Colors.white,
+      );
+
+      await authController.logout();
+    } catch (e) {
+      debugPrint('[PROFILE ERROR] Delete account failed: $e');
+      Get.snackbar(
+        'Delete Failed',
+        e.toString().replaceAll('Exception: ', ''),
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.shade600,
+        colorText: Colors.white,
+      );
+    } finally {
+      isDeletingAccount.value = false;
+    }
+  }
+
+  // ============================================
+  // LOGOUT (POST /logout)
   // ============================================
 
   Future<void> logout() async {
     try {
-      await authController.logoutAPI();
+      final currentToken = token;
+      if (currentToken != null && currentToken.isNotEmpty) {
+        await _profileApi.logout(token: currentToken);
+      }
+      await authController.logout();
     } catch (e) {
-      print('Logout error: $e');
-
-      Get.snackbar(
-        'Error',
-        'Failed to logout',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      debugPrint('[PROFILE ERROR] Logout error: $e');
+      await authController.logout();
     }
   }
 }

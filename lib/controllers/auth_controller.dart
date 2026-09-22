@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
+import 'package:lildairy/screens/login.dart';
 import 'package:lildairy/services/storage_service.dart';
 
 import '../api/auth_api.dart';
@@ -64,7 +65,7 @@ class AuthController extends GetxController {
       isLoading.value = true;
       errorMessage.value = "";
 
-      final result = await _authApi.RegisterAPI(
+      await _authApi.RegisterAPI(
         name: name,
         username: username,
         email: email,
@@ -107,6 +108,8 @@ class AuthController extends GetxController {
 
     token.value = null;
     isLoggedIn.value = false;
+
+    Get.offAll(() => LoginScreen());
   }
 
   Future<void> logoutAPI() async {
