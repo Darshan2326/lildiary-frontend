@@ -149,45 +149,114 @@ class Diaries {
 
 class Memories {
   int? id;
+  int? recapId;
   String? title;
   String? description;
   String? videoUrl;
   String? thumbnailUrl;
   String? status;
+  int? progress;
+  String? statusMessage;
+  String? childName;
+  String? mood;
+  int? durationSeconds;
+  int? memoriesCount;
   String? errorMessage;
   String? createdAt;
 
-  Memories(
-      {this.id,
-      this.title,
-      this.description,
-      this.videoUrl,
-      this.thumbnailUrl,
-      this.status,
-      this.errorMessage,
-      this.createdAt});
+  Memories({
+    this.id,
+    this.recapId,
+    this.title,
+    this.description,
+    this.videoUrl,
+    this.thumbnailUrl,
+    this.status,
+    this.progress,
+    this.statusMessage,
+    this.childName,
+    this.mood,
+    this.durationSeconds,
+    this.memoriesCount,
+    this.errorMessage,
+    this.createdAt,
+  });
 
   Memories.fromJson(Map<String, dynamic> json) {
-    id = json['id'];
+    id = json['id'] ?? json['recap_id'];
+    recapId = json['recap_id'] ?? json['id'];
     title = json['title'];
     description = json['description'];
     videoUrl = json['video_url'];
     thumbnailUrl = json['thumbnail_url'];
     status = json['status'];
+    progress = json['progress'] is num ? (json['progress'] as num).toInt() : null;
+    statusMessage = json['status_message'];
+    childName = json['child_name'];
+    mood = json['mood'];
+    durationSeconds = json['duration_seconds'] is num
+        ? (json['duration_seconds'] as num).toInt()
+        : null;
+    memoriesCount = json['memories_count'] is num
+        ? (json['memories_count'] as num).toInt()
+        : null;
     errorMessage = json['error_message'];
     createdAt = json['created_at'];
   }
 
   Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = new Map<String, dynamic>();
+    final Map<String, dynamic> data = <String, dynamic>{};
     data['id'] = this.id;
+    data['recap_id'] = this.recapId ?? this.id;
     data['title'] = this.title;
     data['description'] = this.description;
     data['video_url'] = this.videoUrl;
     data['thumbnail_url'] = this.thumbnailUrl;
     data['status'] = this.status;
+    data['progress'] = this.progress;
+    data['status_message'] = this.statusMessage;
+    data['child_name'] = this.childName;
+    data['mood'] = this.mood;
+    data['duration_seconds'] = this.durationSeconds;
+    data['memories_count'] = this.memoriesCount;
     data['error_message'] = this.errorMessage;
     data['created_at'] = this.createdAt;
+    return data;
+  }
+}
+
+class RecapGenerateRequest {
+  final String? childName;
+  final String? startDate;
+  final String? endDate;
+  final String mood;
+  final String theme;
+  final int maxMemories;
+
+  const RecapGenerateRequest({
+    this.childName,
+    this.startDate,
+    this.endDate,
+    this.mood = "happy",
+    this.theme = "classic",
+    this.maxMemories = 40,
+  });
+
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> data = {
+      'mood': mood,
+      'theme': theme,
+      'max_memories': maxMemories,
+    };
+    if (childName != null && childName!.trim().isNotEmpty) {
+      data['child_name'] = childName!.trim();
+    }
+    if (startDate != null && startDate!.trim().isNotEmpty) {
+      data['start_date'] = startDate!.trim();
+    }
+    if (endDate != null && endDate!.trim().isNotEmpty) {
+      data['end_date'] = endDate!.trim();
+    }
     return data;
   }
 }

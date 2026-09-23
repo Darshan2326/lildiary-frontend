@@ -1,5 +1,5 @@
 class ApiConstants {
-  static const String baseUrl = "http://10.52.102.52:8001";
+  static const String baseUrl = "http://10.52.102.219:8001";
 
   static const String login = "$baseUrl/login";
   static const String logout = "$baseUrl/logout";
@@ -18,6 +18,9 @@ class ApiConstants {
   static const String addDiary = "$baseUrl/diary/add_diary";
 
   static const String memories = "$baseUrl/memories";
+  static const String recapGenerate = "$baseUrl/memories/recap/generate";
+  static String recapStatus(dynamic recapId) =>
+      "$baseUrl/memories/recap/$recapId/status";
   static const String generateMemory = "$baseUrl/memories/generate";
-  static String memoryById(int id) => "$baseUrl/memories/$id";
+  static String memoryById(dynamic id) => "$baseUrl/memories/$id";
 }
