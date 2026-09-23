@@ -260,8 +260,8 @@ class lendingHomeScreen extends StatelessWidget {
     BuildContext context,
     String noteId,
     Map<String, dynamic> noteData,
-  ) {
-    Navigator.push(
+  ) async {
+    final result = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => NoteDetailScreen(
@@ -270,6 +270,10 @@ class lendingHomeScreen extends StatelessWidget {
         ),
       ),
     );
+
+    if (result == true) {
+      controller.loadUserData();
+    }
   }
 
   // Media grid

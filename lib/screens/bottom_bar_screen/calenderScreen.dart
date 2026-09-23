@@ -286,8 +286,8 @@ class CalendarScreen extends StatelessWidget {
     BuildContext context,
     String noteId,
     Map<String, dynamic> noteData,
-  ) {
-    Navigator.push(
+  ) async {
+    final result = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => NoteDetailScreen(
@@ -296,6 +296,11 @@ class CalendarScreen extends StatelessWidget {
         ),
       ),
     );
+
+    if (result == true && Get.isRegistered<CalendarController>()) {
+      final calCtrl = Get.find<CalendarController>();
+      calCtrl.fetchMemoriesForDate(calCtrl.selectedDate.value);
+    }
   }
 
   // ==============================

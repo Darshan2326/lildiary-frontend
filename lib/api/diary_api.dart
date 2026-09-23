@@ -167,4 +167,62 @@ class DiaryApi {
       'Failed to add diary: ${response.statusCode}. Response: ${response.body}',
     );
   }
+
+  Future<Map<String, dynamic>> deleteDiary({
+    required dynamic diaryId,
+    required String token,
+  }) async {
+    final url = ApiConstants.deleteDiary(diaryId);
+
+    final response = await _apiClient.delete(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'accept': '*/*',
+      },
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 204) {
+      if (response.body.isNotEmpty) {
+        try {
+          final decoded = jsonDecode(response.body);
+          if (decoded is Map<String, dynamic>) {
+            debugPrint('[DIARY] Deleted diary successfully with ID: $diaryId');
+            return decoded;
+          }
+        } catch (error) {
+          debugPrint('[DIARY] Delete succeeded, could not decode body: $error');
+        }
+      }
+      return {
+        'message': 'Diary deleted successfully',
+        'diary_id': diaryId,
+      };
+    }
+
+    if (response.statusCode == 401) {
+      throw Exception('Session expired or unauthorized');
+    }
+
+    if (response.statusCode == 404) {
+      throw Exception('Diary not found');
+    }
+
+    String errorMsg = response.body;
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map && decoded.containsKey('detail')) {
+        final detail = decoded['detail'];
+        if (detail is String) {
+          errorMsg = detail;
+        } else if (detail is List && detail.isNotEmpty) {
+          errorMsg = detail.first['msg']?.toString() ?? detail.toString();
+        }
+      }
+    } catch (_) {}
+
+    throw Exception(
+      'Failed to delete diary (${response.statusCode}): $errorMsg',
+    );
+  }
 }

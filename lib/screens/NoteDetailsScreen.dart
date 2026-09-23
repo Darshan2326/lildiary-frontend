@@ -1,13 +1,11 @@
+import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'package:carousel_slider/carousel_slider.dart';
-import 'package:lildairy/screens/FullScreenMediaViewer.dart';
+import 'package:get/get.dart';
+import 'package:lildairy/controllers/note_details_controller.dart';
 import 'package:lildairy/widget/smart_media_widget.dart';
-import 'package:share_plus/share_plus.dart';
-import 'EditNoteScreen.dart';
 
-class NoteDetailScreen extends StatefulWidget {
+class NoteDetailScreen extends StatelessWidget {
   final String noteId;
   final Map<String, dynamic> noteData;
 
@@ -17,29 +15,14 @@ class NoteDetailScreen extends StatefulWidget {
     required this.noteData,
   });
 
-  @override
-  State<NoteDetailScreen> createState() => _NoteDetailScreenState();
-}
-
-class _NoteDetailScreenState extends State<NoteDetailScreen> {
-  int _currentIndex = 0; // Track current carousel index
-
-  // Function to delete the note
-  Future<void> _deleteNote() async {
-    try {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Delete action is ready for API integration.')),
-      );
-      Navigator.pop(context);
-    } catch (e) {
-      print('Error deleting note: $e');
-    }
-  }
-
   /// Builds a single media item for the carousel using SmartMediaWidget.
   Widget _buildCarouselItem(
-      String rawMediaPath, int index, List<dynamic> mediaPaths) {
+    BuildContext context,
+    NoteDetailsController controller,
+    String rawMediaPath,
+    int index,
+    List<dynamic> mediaPaths,
+  ) {
     return Stack(
       children: [
         Positioned.fill(
@@ -49,17 +32,15 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
               borderRadius: BorderRadius.circular(10),
             ),
             clipBehavior: Clip.hardEdge,
-            child: SmartMediaWidget(
-              mediaPath: rawMediaPath,
-              fit: BoxFit.cover,
-              isPlaying: _currentIndex == index,
-              onVideoPlayPause: (isPlaying) {
-                if (isPlaying) {
-                  setState(() {
-                    _currentIndex = index;
-                  });
-                }
-              },
+            child: Obx(
+              () => SmartMediaWidget(
+                mediaPath: rawMediaPath,
+                fit: BoxFit.cover,
+                isPlaying: controller.currentIndex.value == index,
+                onVideoPlayPause: (isPlaying) {
+                  controller.onVideoPlayPause(isPlaying, index);
+                },
+              ),
             ),
           ),
         ),
@@ -68,15 +49,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
           top: 8,
           right: 12,
           child: GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      FullScreenMediaViewer(mediaPath: rawMediaPath),
-                ),
-              );
-            },
+            onTap: () => controller.openFullScreen(context, rawMediaPath),
             child: Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
@@ -97,10 +70,13 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final mediaPaths = widget.noteData['mediaPaths'] as List<dynamic>?;
-    final timestamp = DateTime.parse(widget.noteData['timestamp'] as String);
-    final formattedDate = DateFormat('dd MMM, yyyy').format(timestamp);
-    final formattedTime = DateFormat('hh:mm a').format(timestamp);
+    final NoteDetailsController controller = Get.put(
+      NoteDetailsController(
+        noteId: noteId,
+        initialNoteData: noteData,
+      ),
+      tag: noteId,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -117,167 +93,100 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Carousel Slider for Media (Images & Videos)
-              if (mediaPaths != null && mediaPaths.isNotEmpty)
-                CarouselSlider(
-                  items: mediaPaths.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final mediaPath = entry.value as String;
-                    return _buildCarouselItem(mediaPath, index, mediaPaths);
-                  }).toList(),
-                  options: CarouselOptions(
-                    height: 250.0,
-                    enlargeCenterPage: true,
-                    enableInfiniteScroll: mediaPaths.length > 1,
-                    autoPlay: false,
-                    viewportFraction: 1,
-                    onPageChanged: (index, reason) {
-                      setState(() {
-                        _currentIndex = index;
-                      });
-                    },
-                  ),
-                ),
-
-              if (mediaPaths == null || mediaPaths.isEmpty)
-                Center(
-                  child: Container(
-                    height: 250,
-                    color: Colors.grey[200],
-                    child: const Center(
-                      child: Text(
-                        'No Media',
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: Colors.black54,
+              Obx(() {
+                final mediaPaths = controller.mediaPaths;
+                if (mediaPaths.isNotEmpty) {
+                  return CarouselSlider(
+                    items: mediaPaths.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final mediaPath = entry.value as String;
+                      return _buildCarouselItem(
+                        context,
+                        controller,
+                        mediaPath,
+                        index,
+                        mediaPaths,
+                      );
+                    }).toList(),
+                    options: CarouselOptions(
+                      height: 250.0,
+                      enlargeCenterPage: true,
+                      enableInfiniteScroll: mediaPaths.length > 1,
+                      autoPlay: false,
+                      viewportFraction: 1,
+                      onPageChanged: (index, reason) {
+                        controller.onPageChanged(index);
+                      },
+                    ),
+                  );
+                } else {
+                  return Center(
+                    child: Container(
+                      height: 250,
+                      color: Colors.grey[200],
+                      child: const Center(
+                        child: Text(
+                          'No Media',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.black54,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ),
-              const SizedBox(
-                height: 15,
-              ),
+                  );
+                }
+              }),
+              const SizedBox(height: 15),
               Row(
                 children: [
                   const Icon(
                     CupertinoIcons.calendar,
                     color: Color(0xFFF48FB1),
                   ),
-                  const SizedBox(
-                    width: 10,
-                  ),
-                  Text(
-                    formattedDate,
-                    style: const TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(
-                    width: 100,
-                  ),
                   const SizedBox(width: 10),
-                ],
-              ),
-              const SizedBox(
-                height: 20,
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      widget.noteData['title'] ?? 'No Title',
+                  Obx(
+                    () => Text(
+                      controller.formattedDate,
                       style: const TextStyle(
-                        fontSize: 18,
+                        fontSize: 15,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(CupertinoIcons.printer_fill,
-                        color: Color(0xFFF48FB1)),
-                    onPressed: () async {
-                      String title = widget.noteData['title'] ?? 'No Title';
-                      String description =
-                          widget.noteData['description'] ?? 'No Description';
-                      List<dynamic>? paths = widget.noteData['mediaPaths'];
-
-                      String shareMessage = "$title\n\n$description";
-
-                      try {
-                        final resolved = paths
-                                ?.map((p) => MediaUtils.resolvePath(p.toString()))
-                                .toList() ??
-                            [];
-                        final localFiles = resolved
-                            .where((p) =>
-                                !p.startsWith('http://') &&
-                                !p.startsWith('https://'))
-                            .map((p) => XFile(p))
-                            .toList();
-
-                        if (localFiles.isNotEmpty) {
-                          await Share.shareXFiles(localFiles,
-                              text: shareMessage);
-                        } else {
-                          final urlList = resolved
-                              .where((p) =>
-                                  p.startsWith('http://') ||
-                                  p.startsWith('https://'))
-                              .join('\n');
-                          await Share.share(urlList.isNotEmpty
-                              ? '$shareMessage\n\n$urlList'
-                              : shareMessage);
-                        }
-                      } catch (e) {
-                        print('Error while sharing: $e');
-                      }
-                    },
+                ],
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: Obx(
+                      () => Text(
+                        controller.title,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
                   ),
                   IconButton(
-                    icon: const Icon(CupertinoIcons.share_up,
-                        color: Color(0xFF81D4FA)),
-                    onPressed: () async {
-                      String title = widget.noteData['title'] ?? 'No Title';
-                      String description =
-                          widget.noteData['description'] ?? 'No Description';
-                      List<dynamic>? paths = widget.noteData['mediaPaths'];
-
-                      String shareMessage = "$title\n\n$description";
-
-                      try {
-                        final resolved = paths
-                                ?.map((p) => MediaUtils.resolvePath(p.toString()))
-                                .toList() ??
-                            [];
-                        final localFiles = resolved
-                            .where((p) =>
-                                !p.startsWith('http://') &&
-                                !p.startsWith('https://'))
-                            .map((p) => XFile(p))
-                            .toList();
-
-                        if (localFiles.isNotEmpty) {
-                          await Share.shareXFiles(localFiles,
-                              text: shareMessage);
-                        } else {
-                          final urlList = resolved
-                              .where((p) =>
-                                  p.startsWith('http://') ||
-                                  p.startsWith('https://'))
-                              .join('\n');
-                          await Share.share(urlList.isNotEmpty
-                              ? '$shareMessage\n\n$urlList'
-                              : shareMessage);
-                        }
-                      } catch (e) {
-                        print('Error while sharing: $e');
-                      }
-                    },
+                    icon: const Icon(
+                      CupertinoIcons.printer_fill,
+                      color: Color(0xFFF48FB1),
+                    ),
+                    onPressed: controller.shareNote,
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      CupertinoIcons.share_up,
+                      color: Color(0xFF81D4FA),
+                    ),
+                    onPressed: controller.shareNote,
                   ),
                 ],
               ),
-              const SizedBox(
-                height: 5,
-              ),
+              const SizedBox(height: 5),
               Row(
                 children: [
                   const Padding(
@@ -285,27 +194,29 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                   ),
                   const Icon(Icons.access_time, color: Color(0xFF81D4FA)),
                   const SizedBox(width: 8),
-                  Text(
-                    formattedTime,
-                    style: const TextStyle(color: Colors.grey),
+                  Obx(
+                    () => Text(
+                      controller.formattedTime,
+                      style: const TextStyle(color: Colors.grey),
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(
-                height: 5,
-              ),
+              const SizedBox(height: 5),
               SizedBox(
                 height: 245,
                 width: double.infinity,
                 child: SingleChildScrollView(
                   scrollDirection: Axis.vertical,
-                  child: Text(
-                    widget.noteData['description'] ?? 'No Description',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.black54,
+                  child: Obx(
+                    () => Text(
+                      controller.description,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.black54,
+                      ),
+                      textAlign: TextAlign.justify,
                     ),
-                    textAlign: TextAlign.justify,
                   ),
                 ),
               ),
@@ -314,19 +225,7 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => EditNoteScreen(
-                            noteId: widget.noteId,
-                            noteData: widget.noteData,
-                          ),
-                        ),
-                      ).then((_) {
-                        setState(() {});
-                      });
-                    },
+                    onPressed: () => controller.openEditNote(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF81D4FA),
                       shape: RoundedRectangleBorder(
@@ -345,11 +244,27 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
                       ),
                     ),
                   ),
-                  IconButton(
-                    onPressed: _deleteNote,
-                    icon: const Icon(CupertinoIcons.delete),
-                    color: const Color(0xFF81D4FA),
-                  ),
+                  Obx(() {
+                    if (controller.isDeleting.value) {
+                      return const Padding(
+                        padding: EdgeInsets.all(12.0),
+                        child: SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Color(0xFF81D4FA),
+                          ),
+                        ),
+                      );
+                    }
+                    return IconButton(
+                      onPressed: () => controller.confirmAndDelete(context),
+                      icon: const Icon(CupertinoIcons.delete),
+                      color: const Color(0xFF81D4FA),
+                      tooltip: 'Delete Note',
+                    );
+                  }),
                 ],
               ),
             ],
@@ -359,3 +274,6 @@ class _NoteDetailScreenState extends State<NoteDetailScreen> {
     );
   }
 }
+
+// Alias for convenience / consistency
+typedef NoteDetailsScreen = NoteDetailScreen;

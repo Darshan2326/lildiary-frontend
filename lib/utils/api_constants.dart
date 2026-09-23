@@ -1,5 +1,5 @@
 class ApiConstants {
-  static const String baseUrl = "http://10.52.102.219:8001";
+  static const String baseUrl = "http://192.168.1.3:8001";
 
   static const String login = "$baseUrl/login";
   static const String logout = "$baseUrl/logout";
@@ -16,6 +16,7 @@ class ApiConstants {
 
   static const String diaryByDate = "$baseUrl/diary/by_date";
   static const String addDiary = "$baseUrl/diary/add_diary";
+  static String deleteDiary(dynamic diaryId) => "$baseUrl/diary/$diaryId";
 
   static const String memories = "$baseUrl/memories";
   static const String recapGenerate = "$baseUrl/memories/recap/generate";
