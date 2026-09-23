@@ -189,6 +189,9 @@ class ProfileController extends GetxController {
       userName.value = updatedUser.name ?? name;
       userUsername.value = updatedUser.username ?? username;
 
+      // Ensure full profile details are reloaded from backend
+      await loadUserDetails();
+
       Get.snackbar(
         'Success',
         'Profile updated successfully',
@@ -279,6 +282,9 @@ class ProfileController extends GetxController {
 
       user.value = updatedUser;
       userEmail.value = updatedUser.email ?? newEmail;
+
+      // Refresh full profile data from backend to ensure Cloudflare/server state is synced
+      await loadUserDetails();
 
       Get.snackbar(
         'Success',

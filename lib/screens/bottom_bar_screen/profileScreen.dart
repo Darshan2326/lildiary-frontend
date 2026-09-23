@@ -342,6 +342,140 @@ class ProfilePage extends StatelessWidget {
   }
 
   // ============================================
+  // CUSTOM MATCHING DIALOG SHELL HELPER
+  // ============================================
+
+  Widget _buildCustomDialogContainer({
+    required IconData icon,
+    required Color iconColor,
+    required Color iconBgColor,
+    required String title,
+    String? subtitle,
+    required Widget content,
+    required Widget actionButton,
+    VoidCallback? onCancel,
+  }) {
+    return Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+      ),
+      elevation: 10,
+      backgroundColor: Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header Icon Badge
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: iconBgColor,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                color: iconColor,
+                size: 32,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Title
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+
+            if (subtitle != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                subtitle,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey.shade600,
+                  height: 1.4,
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 20),
+
+            // Content (Inputs, warning texts, OTP fields)
+            content,
+
+            const SizedBox(height: 24),
+
+            // Actions Row
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      side: BorderSide(color: Colors.grey.shade300),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: onCancel ?? () => Get.back(),
+                    child: Text(
+                      'Cancel',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: actionButton,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _buildInputDecoration({
+    required String labelText,
+    required IconData prefixIcon,
+    String? hintText,
+  }) {
+    return InputDecoration(
+      labelText: labelText,
+      hintText: hintText,
+      prefixIcon: Icon(prefixIcon, color: const Color(0xFF4FC3F7)),
+      filled: true,
+      fillColor: Colors.grey.shade50,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      labelStyle: TextStyle(color: Colors.grey.shade700, fontSize: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFF4FC3F7), width: 2),
+      ),
+    );
+  }
+
+  // ============================================
   // DIALOG: EDIT PROFILE INFO (PATCH /users/profile)
   // ============================================
 
@@ -357,61 +491,74 @@ class ProfilePage extends StatelessWidget {
     );
 
     Get.dialog(
-      AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: const Text('Edit Profile'),
+      _buildCustomDialogContainer(
+        icon: Icons.edit_note_rounded,
+        iconColor: const Color(0xFF0288D1),
+        iconBgColor: const Color(0xFFE1F5FE),
+        title: 'Edit Profile Information',
+        subtitle: 'Update your display name and username below',
         content: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nameController,
-              decoration: const InputDecoration(
+              decoration: _buildInputDecoration(
                 labelText: 'Full Name',
-                prefixIcon: Icon(Icons.person),
-                border: OutlineInputBorder(),
+                prefixIcon: Icons.person_outline,
+                hintText: 'Enter your full name',
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             TextField(
               controller: usernameController,
-              decoration: const InputDecoration(
+              decoration: _buildInputDecoration(
                 labelText: 'Username',
-                prefixIcon: Icon(Icons.alternate_email),
-                border: OutlineInputBorder(),
+                prefixIcon: Icons.alternate_email,
+                hintText: 'Enter username',
               ),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('Cancel'),
-          ),
-          Obx(
-            () => ElevatedButton(
-              onPressed: controller.isUpdatingProfile.value
-                  ? null
-                  : () async {
-                      final success = await controller.updateProfileInfo(
-                        name: nameController.text,
-                        username: usernameController.text,
-                      );
-                      if (success) {
-                        Get.back();
-                      }
-                    },
-              child: controller.isUpdatingProfile.value
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Save'),
+        actionButton: Obx(
+          () => ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF4FC3F7),
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
+            onPressed: controller.isUpdatingProfile.value
+                ? null
+                : () async {
+                    final success = await controller.updateProfileInfo(
+                      name: nameController.text,
+                      username: usernameController.text,
+                    );
+                    if (success) {
+                      Get.back();
+                      await controller.loadUserDetails();
+                    }
+                  },
+            child: controller.isUpdatingProfile.value
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Text(
+                    'Save Changes',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -427,66 +574,103 @@ class ProfilePage extends StatelessWidget {
     final newEmailController = TextEditingController();
 
     Get.dialog(
-      AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: const Text('Request Email Change'),
+      _buildCustomDialogContainer(
+        icon: Icons.mark_email_unread_outlined,
+        iconColor: const Color(0xFF0288D1),
+        iconBgColor: const Color(0xFFE1F5FE),
+        title: 'Change Email Address',
+        subtitle: 'A verification OTP will be sent to your new email address',
         content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Current Email: ${controller.userEmail.value}',
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey.shade700,
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.blue.shade100),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, size: 18, color: Colors.blue.shade700),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Current: ${controller.userEmail.value.isEmpty ? "None" : controller.userEmail.value}',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.blue.shade900,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             TextField(
               controller: newEmailController,
               keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
+              decoration: _buildInputDecoration(
                 labelText: 'New Email Address',
-                prefixIcon: Icon(Icons.email),
-                border: OutlineInputBorder(),
+                prefixIcon: Icons.email_outlined,
+                hintText: 'name@example.com',
               ),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('Cancel'),
-          ),
-          Obx(
-            () => ElevatedButton(
-              onPressed: controller.isSendingOtp.value
-                  ? null
-                  : () async {
-                      final newEmail = newEmailController.text.trim();
-                      if (newEmail.isEmpty || !newEmail.contains('@')) {
-                        Get.snackbar('Invalid Email', 'Please enter a valid email');
-                        return;
-                      }
-
-                      final success = await controller.requestEmailChangeOTP(newEmail);
-                      if (success) {
-                        Get.back();
-                        _showVerifyOtpDialog(context, controller, newEmail);
-                      }
-                    },
-              child: controller.isSendingOtp.value
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Send OTP'),
+        actionButton: Obx(
+          () => ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF4FC3F7),
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
+            onPressed: controller.isSendingOtp.value
+                ? null
+                : () async {
+                    final newEmail = newEmailController.text.trim();
+                    if (newEmail.isEmpty || !newEmail.contains('@')) {
+                      Get.snackbar(
+                        'Invalid Email',
+                        'Please enter a valid email address',
+                        snackPosition: SnackPosition.BOTTOM,
+                        backgroundColor: Colors.orange.shade800,
+                        colorText: Colors.white,
+                      );
+                      return;
+                    }
+
+                    final success =
+                        await controller.requestEmailChangeOTP(newEmail);
+                    if (success) {
+                      Get.back();
+                      _showVerifyOtpDialog(context, controller, newEmail);
+                    }
+                  },
+            child: controller.isSendingOtp.value
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Text(
+                    'Send OTP',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -499,72 +683,101 @@ class ProfilePage extends StatelessWidget {
     final otpController = TextEditingController();
 
     Get.dialog(
-      AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: const Text('Verify Email OTP'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Enter the 6-digit OTP code sent to:\n$newEmail',
-              style: const TextStyle(fontSize: 13),
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: otpController,
-              keyboardType: TextInputType.number,
-              maxLength: 6,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 20,
-                letterSpacing: 8,
-                fontWeight: FontWeight.bold,
-              ),
-              decoration: const InputDecoration(
-                labelText: 'OTP Code',
-                counterText: '',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('Cancel'),
+      _buildCustomDialogContainer(
+        icon: Icons.mark_email_read_outlined,
+        iconColor: const Color(0xFF0288D1),
+        iconBgColor: const Color(0xFFE1F5FE),
+        title: 'Verify Email OTP',
+        subtitle: 'Enter the 6-digit verification code sent to:\n$newEmail',
+        content: TextField(
+          controller: otpController,
+          keyboardType: TextInputType.number,
+          maxLength: 6,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 24,
+            letterSpacing: 10,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
           ),
-          Obx(
-            () => ElevatedButton(
-              onPressed: controller.isVerifyingOtp.value
-                  ? null
-                  : () async {
-                      final otp = otpController.text.trim();
-                      if (otp.length < 4) {
-                        Get.snackbar('Invalid OTP', 'Please enter valid OTP code');
-                        return;
-                      }
-
-                      final success = await controller.verifyEmailChangeOTP(
-                        newEmail: newEmail,
-                        otp: otp,
+          decoration: InputDecoration(
+            counterText: '',
+            hintText: '------',
+            hintStyle: TextStyle(
+              color: Colors.grey.shade400,
+              letterSpacing: 8,
+              fontSize: 22,
+            ),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+            contentPadding: const EdgeInsets.symmetric(vertical: 14),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: Color(0xFF4FC3F7), width: 2),
+            ),
+          ),
+        ),
+        actionButton: Obx(
+          () => ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF4FC3F7),
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: controller.isVerifyingOtp.value
+                ? null
+                : () async {
+                    final otp = otpController.text.trim();
+                    if (otp.length < 4) {
+                      Get.snackbar(
+                        'Invalid OTP',
+                        'Please enter a valid OTP code',
+                        snackPosition: SnackPosition.BOTTOM,
+                        backgroundColor: Colors.orange.shade800,
+                        colorText: Colors.white,
                       );
-                      if (success) {
-                        Get.back();
-                      }
-                    },
-              child: controller.isVerifyingOtp.value
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Verify & Update'),
-            ),
+                      return;
+                    }
+
+                    final success = await controller.verifyEmailChangeOTP(
+                      newEmail: newEmail,
+                      otp: otp,
+                    );
+                    if (success) {
+                      Get.back(); // Closes the OTP modal dialog
+                      await controller.loadUserDetails(); // Refreshes profile data in frontend & backend state
+                    }
+                  },
+            child: controller.isVerifyingOtp.value
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Text(
+                    'Verify & Save',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -580,72 +793,75 @@ class ProfilePage extends StatelessWidget {
     final passwordController = TextEditingController();
 
     Get.dialog(
-      AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: const Text(
-          'Delete Account',
-          style: TextStyle(color: Colors.red),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'This action will deactivate your profile and invalidate active sessions. Please enter your account password to confirm:',
-              style: TextStyle(fontSize: 13),
+      _buildCustomDialogContainer(
+        icon: Icons.warning_amber_rounded,
+        iconColor: Colors.red.shade700,
+        iconBgColor: Colors.red.shade50,
+        title: 'Delete Account',
+        subtitle:
+            'This action will permanently deactivate your profile. Please enter your password to confirm.',
+        content: TextField(
+          controller: passwordController,
+          obscureText: true,
+          decoration: _buildInputDecoration(
+            labelText: 'Password',
+            prefixIcon: Icons.lock_outline,
+            hintText: 'Enter your password',
+          ).copyWith(
+            prefixIcon: Icon(Icons.lock_outline, color: Colors.red.shade600),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.red.shade600, width: 2),
             ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Password',
-                prefixIcon: Icon(Icons.lock_outline),
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('Cancel'),
           ),
-          Obx(
-            () => ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red.shade600,
+        ),
+        actionButton: Obx(
+          () => ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade600,
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
-              onPressed: controller.isDeletingAccount.value
-                  ? null
-                  : () async {
-                      final password = passwordController.text;
-                      if (password.isEmpty) {
-                        Get.snackbar('Required', 'Password is required to delete account');
-                        return;
-                      }
+            ),
+            onPressed: controller.isDeletingAccount.value
+                ? null
+                : () async {
+                    final password = passwordController.text;
+                    if (password.isEmpty) {
+                      Get.snackbar(
+                        'Required',
+                        'Password is required to delete account',
+                        snackPosition: SnackPosition.BOTTOM,
+                        backgroundColor: Colors.red.shade700,
+                        colorText: Colors.white,
+                      );
+                      return;
+                    }
 
-                      Get.back();
-                      await controller.deleteAccount(password);
-                    },
-              child: controller.isDeletingAccount.value
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Text(
-                      'Delete Account',
-                      style: TextStyle(color: Colors.white),
+                    Get.back();
+                    await controller.deleteAccount(password);
+                  },
+            child: controller.isDeletingAccount.value
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
                     ),
-            ),
+                  )
+                : const Text(
+                    'Delete Account',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -659,32 +875,37 @@ class ProfilePage extends StatelessWidget {
     ProfileController controller,
   ) {
     Get.dialog(
-      AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+      _buildCustomDialogContainer(
+        icon: Icons.logout_rounded,
+        iconColor: const Color(0xFF0288D1),
+        iconBgColor: const Color(0xFFE1F5FE),
+        title: 'Confirm Logout',
+        subtitle: 'Are you sure you want to log out of your LilDiary account?',
+        content: const SizedBox.shrink(),
+        actionButton: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF4FC3F7),
+            padding: const EdgeInsets.symmetric(vertical: 13),
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          onPressed: () async {
+            Get.back();
+            await controller.logout();
+          },
+          child: const Text(
+            'Log Out',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
         ),
-        title: const Text('Confirm Logout'),
-        content: const Text('Are you sure you want to log out of your account?'),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue.shade600,
-            ),
-            onPressed: () async {
-              Get.back();
-              await controller.logout();
-            },
-            child: const Text(
-              'Log Out',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
       ),
     );
   }
 }
+
