@@ -24,4 +24,7 @@ class ApiConstants {
       "$baseUrl/memories/recap/$recapId/status";
   static const String generateMemory = "$baseUrl/memories/generate";
   static String memoryById(dynamic id) => "$baseUrl/memories/$id";
+  static const String musicCatalog = "$baseUrl/memories/music";
+  static String musicByCategory(String category) =>
+      "$baseUrl/memories/music?category=$category";
 }

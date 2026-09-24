@@ -359,10 +359,10 @@ class Memoriesscreen extends StatelessWidget {
         ? memory.statusMessage!
         : 'Creating your memory recap...';
 
-    final childName = memory.childName?.isNotEmpty == true
-        ? memory.childName!
-        : "Child's";
-    final mood = memory.mood ?? 'happy';
+    final musicBadge = _musicCategoryBadge(
+      memory.musicCategory,
+      songTitle: memory.songTitle,
+    );
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -388,26 +388,47 @@ class Memoriesscreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
+              Expanded(
+                child: Row(
+                  children: [
+                    const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    "$childName's Recap",
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Memory Recap",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            musicBadge,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.amber.shade900,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -467,10 +488,10 @@ class Memoriesscreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                "Mood: ${mood.capitalizeFirst}",
+                musicBadge,
                 style: const TextStyle(
                   fontSize: 12,
-                  color: Colors.black45,
+                  color: Colors.black54,
                 ),
               ),
               const Text(
@@ -508,9 +529,13 @@ class Memoriesscreen extends StatelessWidget {
 
     final title = memory.title?.isNotEmpty == true
         ? memory.title!
-        : (memory.childName?.isNotEmpty == true
-            ? "${memory.childName}'s Memory Recap"
-            : 'Memory Recap #${memory.id ?? ""}');
+        : (memory.songTitle?.isNotEmpty == true
+            ? "Memory Recap • ${memory.songTitle}"
+            : (memory.musicCategory?.isNotEmpty == true
+                ? "${_musicCategoryBadge(memory.musicCategory)} Recap"
+                : (memory.id != null
+                    ? 'Memory Recap #${memory.id}'
+                    : 'Memory Recap')));
 
     final status = (memory.status ?? 'ready').toLowerCase();
     final isReady = status == 'completed' ||
@@ -723,7 +748,8 @@ class Memoriesscreen extends StatelessWidget {
                             color: Colors.black54,
                           ),
                         ),
-                        if (memory.mood?.isNotEmpty == true) ...[
+                        if (memory.musicCategory?.isNotEmpty == true ||
+                            memory.mood?.isNotEmpty == true) ...[
                           const SizedBox(width: 10),
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -735,7 +761,9 @@ class Memoriesscreen extends StatelessWidget {
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
-                              _moodEmoji(memory.mood!) + " " + memory.mood!,
+                              _musicCategoryBadge(
+                                memory.musicCategory ?? memory.mood,
+                              ),
                               style: TextStyle(
                                 fontSize: 11.5,
                                 color: Colors.blue.shade800,
@@ -849,19 +877,22 @@ class Memoriesscreen extends StatelessWidget {
     BuildContext context,
     MemoriesController controller,
   ) {
-    final nameController = TextEditingController();
     DateTime? startDate;
     DateTime? endDate;
-    String selectedMood = "happy";
+    String selectedCategory = "calm";
+    MusicTrack? selectedSong;
     String selectedTheme = "classic";
     double maxMemories = 40;
 
-    final List<Map<String, String>> moods = [
-      {"key": "happy", "label": "Happy 😊"},
-      {"key": "emotional", "label": "Emotional 🥹"},
-      {"key": "childhood", "label": "Childhood 🎈"},
-      {"key": "celebration", "label": "Celebration 🎉"},
-      {"key": "calm", "label": "Calm 🍃"},
+    // Fetch initial tracks for default category
+    controller.fetchMusicCatalog(category: selectedCategory);
+
+    final List<Map<String, String>> categories = [
+      {"key": "calm", "label": "🌿 Calm"},
+      {"key": "happy", "label": "☀️ Happy"},
+      {"key": "emotional", "label": "🥹 Emotional"},
+      {"key": "childhood", "label": "🧸 Childhood"},
+      {"key": "celebration", "label": "🎉 Celebration"},
     ];
 
     showModalBottomSheet(
@@ -916,42 +947,14 @@ class Memoriesscreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      "Generate a personalized Google Photos style highlight video.",
+                      "Generate a personalized recap highlight video with background music.",
                       style: TextStyle(color: Colors.black54, fontSize: 13),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Child Name Input
-                    const Text(
-                      "Child's Name (Optional)",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    TextField(
-                      controller: nameController,
-                      decoration: InputDecoration(
-                        hintText: "e.g. Emma",
-                        prefixIcon: const Icon(Icons.child_care_rounded),
-                        filled: true,
-                        fillColor: Colors.grey.shade100,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 12,
-                        ),
-                      ),
                     ),
                     const SizedBox(height: 18),
 
-                    // Date Range Pickers
+                    // Date Range Pickers (Start Date & End Date)
                     const Text(
-                      "Date Range (Optional)",
+                      "Date Range",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
@@ -1059,9 +1062,9 @@ class Memoriesscreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 18),
 
-                    // Music Mood Selector
+                    // Music Category Selector
                     const Text(
-                      "Background Music Mood",
+                      "Background Music Category",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
@@ -1071,10 +1074,10 @@ class Memoriesscreen extends StatelessWidget {
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: moods.map((m) {
-                        final isSel = selectedMood == m["key"];
+                      children: categories.map((cat) {
+                        final isSel = selectedCategory == cat["key"];
                         return ChoiceChip(
-                          label: Text(m["label"]!),
+                          label: Text(cat["label"]!),
                           selected: isSel,
                           selectedColor: const Color(0xFF81D4FA),
                           backgroundColor: Colors.grey.shade100,
@@ -1085,13 +1088,132 @@ class Memoriesscreen extends StatelessWidget {
                           ),
                           onSelected: (val) {
                             if (val) {
-                              setStateModal(() => selectedMood = m["key"]!);
+                              setStateModal(() {
+                                selectedCategory = cat["key"]!;
+                                selectedSong = null;
+                              });
+                              controller.fetchMusicCatalog(
+                                category: selectedCategory,
+                              );
                             }
                           },
                         );
                       }).toList(),
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 14),
+
+                    // Optional Song Track Selection within selected category
+                    Obx(() {
+                      final tracks = controller.musicTracks
+                          .where((t) =>
+                              t.category.toLowerCase() ==
+                              selectedCategory.toLowerCase())
+                          .toList();
+
+                      if (controller.isLoadingMusic.value) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8.0),
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Color(0xFF0288D1),
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                "Loading music tracks...",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.black54,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      if (tracks.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Select Track (Optional)",
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<int?>(
+                                isExpanded: true,
+                                value: selectedSong?.id,
+                                hint: const Text(
+                                  "✨ Auto (Studio curated default)",
+                                  style: TextStyle(fontSize: 13),
+                                ),
+                                icon: const Icon(
+                                  Icons.music_note,
+                                  color: Color(0xFF0288D1),
+                                  size: 18,
+                                ),
+                                items: [
+                                  const DropdownMenuItem<int?>(
+                                    value: null,
+                                    child: Text(
+                                      "✨ Auto (Studio curated default)",
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                  ...tracks.map((t) {
+                                    final dur = t.durationSeconds != null
+                                        ? " (${t.durationSeconds!.round()}s)"
+                                        : "";
+                                    return DropdownMenuItem<int?>(
+                                      value: t.id,
+                                      child: Text(
+                                        "${t.title}$dur",
+                                        style: const TextStyle(fontSize: 13),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    );
+                                  }),
+                                ],
+                                onChanged: (trackId) {
+                                  setStateModal(() {
+                                    if (trackId == null) {
+                                      selectedSong = null;
+                                    } else {
+                                      selectedSong = tracks.firstWhereOrNull(
+                                        (t) => t.id == trackId,
+                                      );
+                                    }
+                                  });
+                                },
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                        ],
+                      );
+                    }),
 
                     // Maximum Memories Slider
                     Row(
@@ -1151,14 +1273,14 @@ class Memoriesscreen extends StatelessWidget {
                           Navigator.pop(modalCtx);
 
                           final req = RecapGenerateRequest(
-                            childName: nameController.text,
                             startDate: startDate != null
                                 ? DateFormat('yyyy-MM-dd').format(startDate!)
                                 : null,
                             endDate: endDate != null
                                 ? DateFormat('yyyy-MM-dd').format(endDate!)
                                 : null,
-                            mood: selectedMood,
+                            backgroundMusic: selectedCategory,
+                            songId: selectedSong?.id,
                             theme: selectedTheme,
                             maxMemories: maxMemories.round(),
                           );
@@ -1252,9 +1374,11 @@ class Memoriesscreen extends StatelessWidget {
                         child: Text(
                           current.title?.isNotEmpty == true
                               ? current.title!
-                              : (current.childName?.isNotEmpty == true
-                                  ? "${current.childName}'s Memory Recap"
-                                  : 'Memory Recap #${memoryId ?? ""}'),
+                              : (current.songTitle?.isNotEmpty == true
+                                  ? "Memory Recap • ${current.songTitle}"
+                                  : (current.musicCategory?.isNotEmpty == true
+                                      ? "${_musicCategoryBadge(current.musicCategory)} Recap"
+                                      : 'Memory Recap #${memoryId ?? ""}')),
                           style: const TextStyle(
                             fontSize: 19,
                             fontWeight: FontWeight.bold,
@@ -1311,14 +1435,25 @@ class Memoriesscreen extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  if (current.childName?.isNotEmpty == true) ...[
+                  if (current.musicCategory?.isNotEmpty == true ||
+                      current.songTitle?.isNotEmpty == true) ...[
+                    Text(
+                      "Music: ${_musicCategoryBadge(current.musicCategory ?? current.mood, songTitle: current.songTitle)}",
+                      style: const TextStyle(
+                        color: Colors.black87,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                  ] else if (current.childName?.isNotEmpty == true) ...[
                     Text(
                       "Child: ${current.childName}",
                       style: const TextStyle(color: Colors.black87),
                     ),
                     const SizedBox(height: 4),
                   ],
-                  if (current.mood?.isNotEmpty == true) ...[
+                  if (current.mood?.isNotEmpty == true &&
+                      current.musicCategory == null) ...[
                     Text(
                       "Mood: ${current.mood!.capitalizeFirst} ${_moodEmoji(current.mood!)}",
                       style: const TextStyle(color: Colors.black87),
@@ -1370,6 +1505,41 @@ class Memoriesscreen extends StatelessWidget {
         );
       },
     );
+  }
+
+  String _musicCategoryBadge(String? category, {String? songTitle}) {
+    final cat = (category ?? 'calm').toLowerCase();
+    String emoji;
+    String name;
+    switch (cat) {
+      case 'calm':
+        emoji = '🌿';
+        name = 'Calm';
+        break;
+      case 'happy':
+        emoji = '☀️';
+        name = 'Happy';
+        break;
+      case 'emotional':
+        emoji = '🥹';
+        name = 'Emotional';
+        break;
+      case 'childhood':
+        emoji = '🧸';
+        name = 'Childhood';
+        break;
+      case 'celebration':
+        emoji = '🎉';
+        name = 'Celebration';
+        break;
+      default:
+        emoji = '🎵';
+        name = category ?? 'Music';
+    }
+    if (songTitle != null && songTitle.isNotEmpty) {
+      return "$emoji $name: $songTitle";
+    }
+    return "$emoji $name";
   }
 
   String _moodEmoji(String mood) {

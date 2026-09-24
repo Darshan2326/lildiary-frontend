@@ -250,4 +250,52 @@ class MemoriesApi {
     } catch (_) {}
     return null;
   }
+
+  // ============================================
+  // 6️⃣ GET BACKGROUND MUSIC CATALOG
+  // GET /memories/music
+  // ============================================
+
+  Future<List<MusicTrack>> getMusicCatalog({
+    String? category,
+    required String token,
+  }) async {
+    final url = (category != null && category.trim().isNotEmpty)
+        ? ApiConstants.musicByCategory(category.trim().toLowerCase())
+        : ApiConstants.musicCatalog;
+
+    final response = await _apiClient.get(
+      url,
+      headers: _authHeaders(token),
+    );
+
+    if (response.statusCode == 200) {
+      try {
+        final decoded = jsonDecode(response.body);
+        if (decoded is! List) {
+          throw const FormatException(
+              'Music catalog response is not a JSON list');
+        }
+        final tracks = decoded
+            .map((item) => MusicTrack.fromJson(item as Map<String, dynamic>))
+            .where((t) => t.isActive)
+            .toList();
+        debugPrint('[MEMORIES MUSIC] Loaded ${tracks.length} music tracks');
+        return tracks;
+      } catch (error, stackTrace) {
+        debugPrint(
+            '[MEMORIES MUSIC ERROR] Could not parse music catalog: $error');
+        debugPrint('[MEMORIES MUSIC ERROR] Stack trace: $stackTrace');
+        throw Exception('Invalid music catalog response from server');
+      }
+    }
+
+    if (response.statusCode == 401) {
+      throw Exception('Could not validate credentials');
+    }
+
+    throw Exception(
+      'Failed to load music catalog (${response.statusCode}): ${_extractDetail(response.body) ?? response.body}',
+    );
+  }
 }

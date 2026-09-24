@@ -17,6 +17,12 @@ class MemoriesController extends GetxController {
   final RxBool isGenerating = false.obs;
   final RxString errorMessage = ''.obs;
 
+  // Music Catalog Observables
+  final RxList<MusicTrack> musicTracks = <MusicTrack>[].obs;
+  final RxString selectedCategory = 'calm'.obs;
+  final Rxn<MusicTrack> selectedTrack = Rxn<MusicTrack>();
+  final RxBool isLoadingMusic = false.obs;
+
   // Track active periodic polling timers by recap ID
   final Map<int, Timer> _pollingTimers = {};
 
@@ -24,6 +30,38 @@ class MemoriesController extends GetxController {
   void onInit() {
     super.onInit();
     fetchMemories();
+    fetchMusicCatalog();
+  }
+
+  Future<void> fetchMusicCatalog({String? category}) async {
+    final token = StorageService.getToken();
+    if (token == null || token.isEmpty) return;
+
+    try {
+      isLoadingMusic.value = true;
+      final tracks = await _memoriesApi.getMusicCatalog(
+        category: category,
+        token: token,
+      );
+      musicTracks.assignAll(tracks);
+    } catch (e) {
+      debugPrint('Fetch music catalog error: $e');
+    } finally {
+      isLoadingMusic.value = false;
+    }
+  }
+
+  void selectCategory(String category) {
+    selectedCategory.value = category;
+    selectedTrack.value = null;
+    fetchMusicCatalog(category: category);
+  }
+
+  void selectTrack(MusicTrack? track) {
+    selectedTrack.value = track;
+    if (track != null) {
+      selectedCategory.value = track.category;
+    }
   }
 
   @override

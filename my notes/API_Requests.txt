@@ -1,0 +1,642 @@
+LILDIARY API REQUESTS
+======================
+
+Base URL
+--------
+http://127.0.0.1:8000
+
+Interactive API documentation
+-----------------------------
+Swagger UI: http://127.0.0.1:8000/docs
+ReDoc:       http://127.0.0.1:8000/redoc
+
+Authentication
+--------------
+Protected endpoints require this header:
+
+Authorization: Bearer YOUR_ACCESS_TOKEN
+
+Get the token from POST /login. The token is valid for the configured
+ACCESS_TOKEN_EXPIRE_MINUTES value.
+
+Common response format
+----------------------
+Validation errors normally return HTTP 422:
+
+{
+  "detail": [
+    {
+      "loc": ["body", "field_name"],
+      "msg": "...",
+      "type": "..."
+    }
+  ]
+}
+
+User response object
+--------------------
+{
+  "id": 1,
+  "name": "John Doe",
+  "username": "john_doe",
+  "email": "john@example.com"
+}
+
+Diary response object
+---------------------
+{
+  "id": 1,
+  "title": "My day",
+  "description": "A diary entry",
+  "images": [
+    "https://example.com/image.jpg"
+  ],
+  "user_id": 1,
+  "user_email": "john@example.com",
+  "created_at": "2026-09-13T10:30:00",
+  "updated_at": "2026-09-13T10:30:00",
+  "deleted_at": null
+}
+
+
+1. HEALTH CHECK
+===============
+
+GET /
+
+Authentication: Not required
+
+Description:
+Checks whether the FastAPI application is running.
+
+Example:
+
+curl http://127.0.0.1:8000/
+
+Success response: HTTP 200
+
+{
+  "message": "FastAPI + MariaDB is working!"
+}
+
+
+2. AUTHENTICATION APIs
+======================
+
+2.1 Register a user
+-------------------
+
+POST /register
+Content-Type: application/json
+Authentication: Not required
+
+Request body:
+
+{
+  "name": "John Doe",
+  "username": "john_doe",
+  "email": "john@example.com",
+  "password": "secret123",
+  "confirm_password": "secret123"
+}
+
+Rules:
+- username must contain 3 to 100 characters
+- password and confirm_password must match
+- email must be unique
+- username must be unique
+
+Example:
+
+curl -X POST "http://127.0.0.1:8000/register" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"name\":\"John Doe\",\"username\":\"john_doe\",\"email\":\"john@example.com\",\"password\":\"secret123\",\"confirm_password\":\"secret123\"}"
+
+Success response: HTTP 200
+Returns a User response object.
+
+Common errors:
+- HTTP 400: user email or username already exists
+- HTTP 422: invalid request body or passwords do not match
+
+
+2.2 Login
+---------
+
+POST /login
+Content-Type: application/json
+Authentication: Not required
+
+Request body:
+
+{
+  "identifier": "john_doe",
+  "password": "secret123"
+}
+
+The identifier can be either the username or email address.
+
+Example:
+
+curl -X POST "http://127.0.0.1:8000/login" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"identifier\":\"john_doe\",\"password\":\"secret123\"}"
+
+Success response: HTTP 200
+
+{
+  "access_token": "YOUR_JWT_TOKEN",
+  "token_type": "bearer"
+}
+
+Common errors:
+- HTTP 401: invalid email/username or password
+- HTTP 422: invalid request body
+
+
+2.3 Get logged-in user
+----------------------
+
+GET /me
+Authentication: Required
+
+Example:
+
+curl -X GET "http://127.0.0.1:8000/me" ^
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+
+Success response: HTTP 200
+Returns a User response object.
+
+Common errors:
+- HTTP 401: missing or invalid token
+
+
+2.4 Request password reset OTP
+------------------------------
+
+POST /forgot-password
+Content-Type: application/json
+Authentication: Not required
+
+Request body:
+
+{
+  "email": "john@example.com"
+}
+
+Example:
+
+curl -X POST "http://127.0.0.1:8000/forgot-password" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"email\":\"john@example.com\"}"
+
+Success response: HTTP 200
+
+{
+  "message": "OTP sent to your email",
+  "email": "john@example.com",
+  "otp": "123456"
+}
+
+Note: The OTP is included in the response when the configured email service
+returns it. Do not expose OTP values in production responses.
+
+Common errors:
+- HTTP 404: user was not found
+- HTTP 422: invalid request body
+
+
+2.5 Verify password reset OTP
+-----------------------------
+
+POST /verify-otp
+Content-Type: application/json
+Authentication: Not required
+
+Request body:
+
+{
+  "email": "john@example.com",
+  "otp": "123456"
+}
+
+Example:
+
+curl -X POST "http://127.0.0.1:8000/verify-otp" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"email\":\"john@example.com\",\"otp\":\"123456\"}"
+
+Success response: HTTP 200
+
+{
+  "message": "OTP verified successfully"
+}
+
+Common errors:
+- HTTP 400: invalid or expired OTP
+- HTTP 422: invalid request body
+
+
+2.6 Reset password
+------------------
+
+POST /reset-password
+Content-Type: application/json
+Authentication: Not required
+
+Request body:
+
+{
+  "email": "john@example.com",
+  "otp": "123456",
+  "new_password": "new-secret123"
+}
+
+The OTP must have been requested and verified before this request.
+
+Example:
+
+curl -X POST "http://127.0.0.1:8000/reset-password" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"email\":\"john@example.com\",\"otp\":\"123456\",\"new_password\":\"new-secret123\"}"
+
+Success response: HTTP 200
+
+{
+  "message": "Password reset successfully"
+}
+
+Common errors:
+- HTTP 400: invalid, expired, or unverified OTP
+- HTTP 404: user was not found
+- HTTP 422: invalid request body
+
+
+3. USER APIs
+============
+
+The current implementation exposes these routes under /users. Despite the
+router tag name, these endpoints are not currently protected by admin
+authentication.
+
+3.1 Create a user
+-----------------
+
+POST /users/
+Content-Type: application/json
+Authentication: Not required in the current implementation
+
+Request body: Same as POST /register.
+
+Example:
+
+curl -X POST "http://127.0.0.1:8000/users/" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"name\":\"Jane Doe\",\"username\":\"jane_doe\",\"email\":\"jane@example.com\",\"password\":\"secret123\",\"confirm_password\":\"secret123\"}"
+
+Success response: HTTP 200
+Returns a User response object.
+
+
+3.2 Get all users
+-----------------
+
+GET /users/
+Authentication: Not required in the current implementation
+
+Example:
+
+curl -X GET "http://127.0.0.1:8000/users/"
+
+Success response: HTTP 200
+
+[
+  {
+    "id": 1,
+    "name": "John Doe",
+    "username": "john_doe",
+    "email": "john@example.com"
+  }
+]
+
+
+3.3 Get one user
+----------------
+
+GET /users/{user_id}
+Path parameter:
+- user_id: integer
+
+Example:
+
+curl -X GET "http://127.0.0.1:8000/users/1"
+
+Success response: HTTP 200
+Returns a User response object.
+
+Common errors:
+- HTTP 404: user was not found
+- HTTP 422: user_id is not an integer
+
+
+3.4 Delete one user
+-------------------
+
+DELETE /users/{user_id}
+Path parameter:
+- user_id: integer
+
+Example:
+
+curl -X DELETE "http://127.0.0.1:8000/users/1"
+
+Success response: HTTP 200
+
+{
+  "message": "User deleted"
+}
+
+Common errors:
+- HTTP 404: user was not found
+- HTTP 422: user_id is not an integer
+
+
+4. DIARY APIs
+=============
+
+All diary endpoints require a valid Bearer token. Diary records are scoped
+to the authenticated user.
+
+4.1 Add a diary with optional media
+-----------------------------------
+
+POST /diary/add_diary
+Content-Type: multipart/form-data
+Authentication: Required
+
+Form fields:
+- title: required text
+- description: required text
+- images: optional repeated file field; image and video files are supported
+
+Send multiple files by repeating the images field.
+
+Example without files:
+
+curl -X POST "http://127.0.0.1:8000/diary/add_diary" ^
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" ^
+  -F "title=My day" ^
+  -F "description=Today was a good day"
+
+Example with files:
+
+curl -X POST "http://127.0.0.1:8000/diary/add_diary" ^
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" ^
+  -F "title=My trip" ^
+  -F "description=Photos from my trip" ^
+  -F "images=@C:\path\to\photo.jpg" ^
+  -F "images=@C:\path\to\video.mp4"
+
+Success response: HTTP 200
+Returns a Diary response object.
+
+Common errors:
+- HTTP 401: missing or invalid token
+- HTTP 422: missing title/description or invalid multipart request
+- Media upload errors may depend on Cloudflare Storage configuration
+
+
+4.2 Get my diaries
+------------------
+
+GET /diary/my_diaries
+Authentication: Required
+
+Example:
+
+curl -X GET "http://127.0.0.1:8000/diary/my_diaries" ^
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+
+Success response: HTTP 200
+
+[
+  {
+    "id": 1,
+    "title": "My day",
+    "description": "Today was a good day",
+    "images": [],
+    "user_id": 1,
+    "user_email": "john@example.com",
+    "created_at": "2026-09-13T10:30:00",
+    "updated_at": "2026-09-13T10:30:00",
+    "deleted_at": null
+  }
+]
+
+Deleted diaries that were moved to recent_deleted are not returned.
+
+
+4.3 Search my diaries
+---------------------
+
+GET /diary/search?search_text=trip
+Authentication: Required
+
+Query parameter:
+- search_text: required text; searches title and description
+- An ISO date such as 2026-09-13 also searches entries created on that date
+
+Example:
+
+curl -G "http://127.0.0.1:8000/diary/search" ^
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" ^
+  --data-urlencode "search_text=trip"
+
+Success response: HTTP 200
+Returns a list of Diary response objects.
+
+Common errors:
+- HTTP 400: search_text is empty
+- HTTP 401: missing or invalid token
+- HTTP 422: missing search_text
+
+
+4.4 Get diaries by date
+-----------------------
+
+GET /diary/by_date?diary_date=2026-09-13
+Authentication: Required
+
+Query parameter:
+- diary_date: required date in YYYY-MM-DD format
+
+Example:
+
+curl -G "http://127.0.0.1:8000/diary/by_date" ^
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" ^
+  --data-urlencode "diary_date=2026-09-13"
+
+Success response: HTTP 200
+Returns diaries created on that date, ordered from earliest to latest.
+
+Common errors:
+- HTTP 401: missing or invalid token
+- HTTP 404: no memories found for that date
+- HTTP 422: invalid date format or missing diary_date
+
+
+4.5 Get recently deleted diaries
+--------------------------------
+
+GET /diary/recent_deleted
+Authentication: Required
+
+Example:
+
+curl -X GET "http://127.0.0.1:8000/diary/recent_deleted" ^
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+
+Success response: HTTP 200
+Returns deleted diaries from the recent_deleted database table, ordered by
+most recent deletion first. Returns an empty list when there are no deleted
+diaries.
+
+Each returned object includes a non-null deleted_at value.
+
+Common errors:
+- HTTP 401: missing or invalid token
+
+
+4.6 Delete a diary
+------------------
+
+DELETE /diary/{diary_id}
+Authentication: Required
+Path parameter:
+- diary_id: integer
+
+Behavior:
+- Copies the diary to the recent_deleted table
+- Removes the diary from the add_diary table
+- Performs both operations in one database transaction
+
+Example:
+
+curl -X DELETE "http://127.0.0.1:8000/diary/1" ^
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+
+Success response: HTTP 200
+
+{
+  "message": "Diary deleted successfully",
+  "diary_id": 1
+}
+
+Common errors:
+- HTTP 401: missing or invalid token
+- HTTP 404: diary was not found or does not belong to the authenticated user
+- HTTP 422: diary_id is not an integer
+
+
+4.7 Memory Recaps & Background Music
+------------------------------------
+
+4.7.1 Get background music catalog
+GET /memories/music
+Authentication: Required
+Optional query parameter:
+- category: string (e.g. "calm", "happy", "emotional", "childhood", "celebration")
+
+Response: HTTP 200
+[
+  {
+    "id": 1,
+    "title": "Calm Peaceful Breeze",
+    "artist": "LilDiary Studio",
+    "category": "calm",
+    "duration_seconds": 30.0,
+    "file_url": "app/assets/music/calm_peaceful_breeze.aac",
+    "is_active": true
+  }
+]
+
+
+4.7.2 Generate custom memory recap
+POST /memories/recap/generate
+Authentication: Required
+Content-Type: application/json
+
+Request body:
+{
+  "start_date": "2026-01-01",
+  "end_date": "2026-12-31",
+  "background_music": "calm",
+  "song_id": 1,
+  "theme": "classic",
+  "max_memories": 40
+}
+
+Note: `child_name` is omitted from custom recap generation. The recap title defaults to "Memory Recap".
+`background_music` selects the soundtrack category (e.g. "calm").
+
+Response: HTTP 202 Accepted
+{
+  "id": 10,
+  "recap_id": 10,
+  "status": "processing",
+  "progress": 5,
+  "status_message": "Creating your memory recap...",
+  "music_category": "calm",
+  "song_title": "Calm Peaceful Breeze"
+}
+
+
+4.7.3 Check recap generation status
+GET /memories/recap/{recap_id}/status
+Authentication: Required
+
+Response: HTTP 200
+{
+  "id": 10,
+  "status": "ready",
+  "progress": 100,
+  "status_message": "Your recap is ready ❤️",
+  "music_category": "calm",
+  "song_title": "Calm Peaceful Breeze",
+  "video_url": "https://pub-.../diaries/.../memories/...",
+  "thumbnail_url": "https://pub-.../diaries/.../memories/...",
+  "duration_seconds": 15,
+  "memories_count": 5
+}
+
+
+5. ROUTE SUMMARY
+================
+
+GET     /                         Health check
+POST    /register                 Register user
+POST    /login                    Login
+POST    /forgot-password          Request password reset OTP
+POST    /verify-otp               Verify password reset OTP
+POST    /reset-password           Reset password
+GET     /me                       Get logged-in user
+POST    /users/                   Create user
+GET     /users/                   Get all users
+GET     /users/{user_id}          Get one user
+DELETE  /users/{user_id}          Delete one user
+POST    /diary/add_diary          Add diary with optional media
+GET     /diary/my_diaries         Get active user diaries
+GET     /diary/search             Search user diaries
+GET     /diary/by_date            Get diaries by date
+GET     /diary/recent_deleted     Get recently deleted diaries
+DELETE  /diary/{diary_id}         Delete diary
+GET     /memories                 Get user memory recaps
+GET     /memories/music           Get background music catalog
+POST    /memories/generate        Trigger standard recap (backward compatible)
+POST    /memories/recap/generate  Trigger customizable recap by date and music category
+GET     /memories/recap/{id}/status Get recap job progress and video URL
+GET     /memories/{memory_id}     Get single memory recap details
+
+End of API reference.
+

@@ -159,6 +159,8 @@ class Memories {
   String? statusMessage;
   String? childName;
   String? mood;
+  String? musicCategory;
+  String? songTitle;
   int? durationSeconds;
   int? memoriesCount;
   String? errorMessage;
@@ -176,6 +178,8 @@ class Memories {
     this.statusMessage,
     this.childName,
     this.mood,
+    this.musicCategory,
+    this.songTitle,
     this.durationSeconds,
     this.memoriesCount,
     this.errorMessage,
@@ -194,6 +198,8 @@ class Memories {
     statusMessage = json['status_message'];
     childName = json['child_name'];
     mood = json['mood'];
+    musicCategory = json['music_category'];
+    songTitle = json['song_title'];
     durationSeconds = json['duration_seconds'] is num
         ? (json['duration_seconds'] as num).toInt()
         : null;
@@ -217,6 +223,8 @@ class Memories {
     data['status_message'] = this.statusMessage;
     data['child_name'] = this.childName;
     data['mood'] = this.mood;
+    data['music_category'] = this.musicCategory;
+    data['song_title'] = this.songTitle;
     data['duration_seconds'] = this.durationSeconds;
     data['memories_count'] = this.memoriesCount;
     data['error_message'] = this.errorMessage;
@@ -225,31 +233,77 @@ class Memories {
   }
 }
 
+class MusicTrack {
+  final int id;
+  final String title;
+  final String artist;
+  final String category;
+  final double? durationSeconds;
+  final String? fileUrl;
+  final bool isActive;
+
+  const MusicTrack({
+    required this.id,
+    required this.title,
+    required this.artist,
+    required this.category,
+    this.durationSeconds,
+    this.fileUrl,
+    this.isActive = true,
+  });
+
+  factory MusicTrack.fromJson(Map<String, dynamic> json) {
+    return MusicTrack(
+      id: json['id'] is num ? (json['id'] as num).toInt() : 0,
+      title: json['title']?.toString() ?? '',
+      artist: json['artist']?.toString() ?? '',
+      category: json['category']?.toString() ?? '',
+      durationSeconds: json['duration_seconds'] is num
+          ? (json['duration_seconds'] as num).toDouble()
+          : null,
+      fileUrl: json['file_url']?.toString(),
+      isActive: json['is_active'] == true || json['is_active'] == null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'artist': artist,
+      'category': category,
+      'duration_seconds': durationSeconds,
+      'file_url': fileUrl,
+      'is_active': isActive,
+    };
+  }
+}
+
 class RecapGenerateRequest {
-  final String? childName;
   final String? startDate;
   final String? endDate;
-  final String mood;
+  final String backgroundMusic;
+  final int? songId;
   final String theme;
   final int maxMemories;
 
   const RecapGenerateRequest({
-    this.childName,
     this.startDate,
     this.endDate,
-    this.mood = "happy",
+    this.backgroundMusic = "calm",
+    this.songId,
     this.theme = "classic",
     this.maxMemories = 40,
   });
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = {
-      'mood': mood,
+      'background_music': backgroundMusic,
       'theme': theme,
       'max_memories': maxMemories,
     };
-    if (childName != null && childName!.trim().isNotEmpty) {
-      data['child_name'] = childName!.trim();
+    if (songId != null) {
+      data['song_id'] = songId;
     }
     if (startDate != null && startDate!.trim().isNotEmpty) {
       data['start_date'] = startDate!.trim();
