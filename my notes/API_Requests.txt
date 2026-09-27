@@ -611,6 +611,38 @@ Response: HTTP 200
 }
 
 
+4.7.4 Delete memory recap
+-------------------------
+
+DELETE /memories/{memory_id}
+Authentication: Required
+
+Response: HTTP 200 OK
+{
+  "message": "Memory deleted successfully",
+  "memory_id": 10
+}
+
+
+4.7.5 Share memory recap
+------------------------
+
+POST /memories/{memory_id}/share
+GET  /memories/{memory_id}/share
+Authentication: Required
+
+Response: HTTP 200 OK
+{
+  "message": "Share link generated successfully",
+  "memory_id": 10,
+  "title": "Summer Memory Recap",
+  "video_url": "https://pub-.../diaries/.../memories/...",
+  "thumbnail_url": "https://pub-.../diaries/.../memories/...",
+  "share_url": "https://pub-.../diaries/.../memories/...",
+  "share_text": "Check out my memory recap: \"Summer Memory Recap\" on Lil Diary! 🎥✨\nhttps://pub-..."
+}
+
+
 5. ROUTE SUMMARY
 ================
 
@@ -637,6 +669,10 @@ POST    /memories/generate        Trigger standard recap (backward compatible)
 POST    /memories/recap/generate  Trigger customizable recap by date and music category
 GET     /memories/recap/{id}/status Get recap job progress and video URL
 GET     /memories/{memory_id}     Get single memory recap details
+DELETE  /memories/{memory_id}     Delete memory recap
+POST    /memories/{memory_id}/share Get share video URL and caption
+GET     /memories/{memory_id}/share Retrieve share info for memory recap
 
 End of API reference.
+
 

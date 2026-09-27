@@ -298,4 +298,99 @@ class MemoriesApi {
       'Failed to load music catalog (${response.statusCode}): ${_extractDetail(response.body) ?? response.body}',
     );
   }
+
+  // ============================================
+  // 7️⃣ DELETE MEMORY RECAP
+  // DELETE /api/v1/memories/{memory_id}
+  // ============================================
+
+  Future<Map<String, dynamic>> deleteMemory({
+    required dynamic memoryId,
+    required String token,
+  }) async {
+    final url = ApiConstants.deleteMemory(memoryId);
+
+    final response = await _apiClient.delete(
+      url,
+      headers: _authHeaders(token),
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 204) {
+      if (response.body.isNotEmpty) {
+        try {
+          final decoded = jsonDecode(response.body);
+          if (decoded is Map<String, dynamic>) {
+            debugPrint('[MEMORIES] Deleted memory recap successfully with ID: $memoryId');
+            return decoded;
+          }
+        } catch (error) {
+          debugPrint('[MEMORIES] Delete succeeded, could not decode body: $error');
+        }
+      }
+      return {
+        'message': 'Memory deleted successfully',
+        'memory_id': memoryId,
+      };
+    }
+
+    if (response.statusCode == 401) {
+      throw Exception('Session expired or unauthorized');
+    }
+
+    if (response.statusCode == 404) {
+      throw Exception('Memory recap not found');
+    }
+
+    throw Exception(
+      'Failed to delete memory #$memoryId (${response.statusCode}): ${_extractDetail(response.body) ?? response.body}',
+    );
+  }
+
+  // ============================================
+  // 8️⃣ GET / CREATE SHARE INFO FOR MEMORY RECAP
+  // POST /api/v1/memories/{memory_id}/share
+  // ============================================
+
+  Future<Map<String, dynamic>> getShareInfo({
+    required dynamic memoryId,
+    required String token,
+  }) async {
+    final url = ApiConstants.shareMemory(memoryId);
+
+    final response = await _apiClient.post(
+      url,
+      {},
+      headers: _authHeaders(token),
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      try {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          debugPrint('[MEMORIES SHARE] Retrieved share info for memory #$memoryId');
+          return decoded;
+        }
+      } catch (e) {
+        debugPrint('[MEMORIES SHARE ERROR] Parse error: $e');
+      }
+    }
+
+    if (response.statusCode == 401) {
+      throw Exception('Session expired or unauthorized');
+    }
+
+    if (response.statusCode == 404) {
+      throw Exception('Memory recap not found');
+    }
+
+    if (response.statusCode == 400) {
+      final detail = _extractDetail(response.body);
+      throw Exception(detail ?? 'Memory video is not ready for sharing yet');
+    }
+
+    throw Exception(
+      'Failed to generate share link (${response.statusCode}): ${_extractDetail(response.body) ?? response.body}',
+    );
+  }
 }
+

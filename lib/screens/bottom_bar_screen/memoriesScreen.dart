@@ -445,8 +445,40 @@ class Memoriesscreen extends StatelessWidget {
                   ),
                 ),
               ),
+              const SizedBox(width: 6),
+              Obx(() {
+                final isDel = controller.deletingMemoryId.value ==
+                    (memory.recapId ?? memory.id);
+                return IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  icon: isDel
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.black45,
+                          ),
+                        )
+                      : const Icon(
+                          CupertinoIcons.xmark_circle,
+                          size: 20,
+                          color: Colors.black38,
+                        ),
+                  tooltip: "Cancel / Delete",
+                  onPressed: isDel
+                      ? null
+                      : () => _confirmAndDeleteMemory(
+                            context,
+                            memory,
+                            controller,
+                          ),
+                );
+              }),
             ],
           ),
+
           const SizedBox(height: 12),
 
           // Status message step
@@ -677,8 +709,37 @@ class Memoriesscreen extends StatelessWidget {
                         controller,
                       ),
                     ),
+                    Obx(() {
+                      final isDel = controller.deletingMemoryId.value ==
+                          (memory.recapId ?? memory.id);
+                      return IconButton(
+                        icon: isDel
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.redAccent,
+                                ),
+                              )
+                            : const Icon(
+                                CupertinoIcons.trash,
+                                size: 19,
+                                color: Colors.black45,
+                              ),
+                        tooltip: "Delete Recap",
+                        onPressed: isDel
+                            ? null
+                            : () => _confirmAndDeleteMemory(
+                                  context,
+                                  memory,
+                                  controller,
+                                ),
+                      );
+                    }),
                   ],
                 ),
+
 
                 if (memory.description != null &&
                     memory.description!.isNotEmpty) ...[
@@ -733,66 +794,146 @@ class Memoriesscreen extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        const Icon(
-                          CupertinoIcons.calendar,
-                          color: Color(0xFFF48FB1),
-                          size: 18,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          formattedDate,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: Colors.black54,
-                          ),
-                        ),
-                        if (memory.musicCategory?.isNotEmpty == true ||
-                            memory.mood?.isNotEmpty == true) ...[
-                          const SizedBox(width: 10),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.shade50,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              _musicCategoryBadge(
-                                memory.musicCategory ?? memory.mood,
+                    Expanded(
+                      child: Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                CupertinoIcons.calendar,
+                                color: Color(0xFFF48FB1),
+                                size: 16,
                               ),
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                color: Colors.blue.shade800,
-                                fontWeight: FontWeight.w600,
+                              const SizedBox(width: 4),
+                              Text(
+                                formattedDate,
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  color: Colors.black54,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (memory.musicCategory?.isNotEmpty == true ||
+                              memory.mood?.isNotEmpty == true)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                _musicCategoryBadge(
+                                  memory.musicCategory ?? memory.mood,
+                                ),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.blue.shade800,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
-                          ),
                         ],
-                      ],
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     if (isReady &&
                         memory.videoUrl != null &&
                         memory.videoUrl!.isNotEmpty)
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0288D1),
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Obx(() {
+                            final isSharing = controller.sharingMemoryId.value ==
+                                (memory.recapId ?? memory.id);
+                            return OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF0288D1),
+                                side: const BorderSide(
+                                  color: Color(0xFF81D4FA),
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                                minimumSize: Size.zero,
+                                tapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              icon: isSharing
+                                  ? const SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Color(0xFF0288D1),
+                                      ),
+                                    )
+                                  : const Icon(
+                                      Icons.share_rounded,
+                                      size: 16,
+                                    ),
+                              label: Text(
+                                isSharing ? "Sharing..." : "Share",
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              onPressed: isSharing
+                                  ? null
+                                  : () => controller.shareMemory(
+                                        context,
+                                        memory,
+                                      ),
+                            );
+                          }),
+                          const SizedBox(width: 8),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0288D1),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              minimumSize: Size.zero,
+                              tapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            icon: const Icon(
+                              Icons.play_circle_fill,
+                              size: 16,
+                            ),
+                            label: const Text(
+                              "Watch",
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            onPressed: () =>
+                                _playVideo(context, memory.videoUrl!),
                           ),
-                        ),
-                        icon: const Icon(Icons.play_circle_fill, size: 18),
-                        label: const Text("Watch"),
-                        onPressed: () =>
-                            _playVideo(context, memory.videoUrl!),
+                        ],
                       ),
                   ],
                 ),
+
               ],
             ),
           ),
@@ -2068,7 +2209,7 @@ class Memoriesscreen extends StatelessWidget {
                     ),
                   ],
                   const SizedBox(height: 20),
-                  if (current.videoUrl?.isNotEmpty == true)
+                  if (current.videoUrl?.isNotEmpty == true) ...[
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
@@ -2094,6 +2235,88 @@ class Memoriesscreen extends StatelessWidget {
                         },
                       ),
                     ),
+                    const SizedBox(height: 10),
+                    Obx(() {
+                      final isSharing = controller.sharingMemoryId.value ==
+                          (current.recapId ?? current.id);
+                      return SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF0288D1),
+                            side: const BorderSide(color: Color(0xFF0288D1)),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          icon: isSharing
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Color(0xFF0288D1),
+                                  ),
+                                )
+                              : const Icon(Icons.share_rounded),
+                          label: Text(
+                            isSharing
+                                ? "Preparing Video..."
+                                : "Share Video to Social Media",
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          onPressed: isSharing
+                              ? null
+                              : () => controller.shareMemory(context, current),
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 10),
+                  ],
+                  Obx(() {
+                    final isDel = controller.deletingMemoryId.value ==
+                        (current.recapId ?? current.id);
+                    return SizedBox(
+                      width: double.infinity,
+                      child: TextButton.icon(
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.redAccent,
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                        ),
+                        icon: isDel
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.redAccent,
+                                ),
+                              )
+                            : const Icon(CupertinoIcons.trash, size: 18),
+                        label: const Text(
+                          "Delete Memory Recap",
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        onPressed: isDel
+                            ? null
+                            : () async {
+                                Navigator.pop(ctx);
+                                await _confirmAndDeleteMemory(
+                                  context,
+                                  current,
+                                  controller,
+                                );
+                              },
+                      ),
+                    );
+                  }),
                 ],
               ),
             );
@@ -2102,6 +2325,60 @@ class Memoriesscreen extends StatelessWidget {
       },
     );
   }
+
+  Future<void> _confirmAndDeleteMemory(
+    BuildContext context,
+    Memories memory,
+    MemoriesController controller,
+  ) async {
+    final title = memory.title?.isNotEmpty == true
+        ? memory.title!
+        : 'this memory recap';
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Row(
+          children: [
+            Icon(CupertinoIcons.trash, color: Colors.redAccent),
+            SizedBox(width: 8),
+            Text(
+              'Delete Memory Recap',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to delete "$title"? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final id = memory.recapId ?? memory.id;
+      if (id != null) {
+        await controller.deleteMemory(id);
+      }
+    }
+  }
+
 
   String _musicCategoryBadge(String? category, {String? songTitle}) {
     final cat = (category ?? 'calm').toLowerCase();

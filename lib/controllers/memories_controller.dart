@@ -1,10 +1,14 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:http/http.dart' as http;
 import 'package:lildairy/api/memories_api.dart';
 import 'package:lildairy/models/user.dart';
 import 'package:lildairy/services/storage_service.dart';
 import 'package:lildairy/utils/api_constants.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
 
 class MemoriesController extends GetxController {
@@ -18,6 +22,11 @@ class MemoriesController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxBool isGenerating = false.obs;
   final RxString errorMessage = ''.obs;
+
+  // Track currently deleting & sharing memory IDs
+  final RxnInt deletingMemoryId = RxnInt(null);
+  final RxnInt sharingMemoryId = RxnInt(null);
+
 
   // Music Catalog Observables
   final RxList<MusicTrack> musicTracks = <MusicTrack>[].obs;
@@ -449,4 +458,172 @@ class MemoriesController extends GetxController {
     _stopAllPolling();
     await fetchMemories();
   }
-}
+
+  // ============================================
+  // 5️⃣ DELETE MEMORY RECAP
+  // ============================================
+
+  Future<bool> deleteMemory(dynamic memoryId) async {
+    if (memoryId == null) return false;
+    final id = memoryId is int ? memoryId : int.tryParse(memoryId.toString());
+    if (id == null) return false;
+
+    final token = StorageService.getToken();
+    if (token == null || token.isEmpty) {
+      Get.snackbar(
+        "Authentication Error",
+        "User not logged in. Please log in again.",
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.withValues(alpha: 0.85),
+        colorText: Colors.white,
+      );
+      return false;
+    }
+
+    try {
+      deletingMemoryId.value = id;
+      await _memoriesApi.deleteMemory(memoryId: id, token: token);
+
+      // Stop any active polling for this memory
+      _stopPolling(id);
+
+      // Remove from reactive list
+      memories.removeWhere((m) => (m.recapId ?? m.id) == id);
+      memories.refresh();
+
+      Get.snackbar(
+        "Memory Deleted",
+        "Memory recap was deleted successfully.",
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.grey.shade900,
+        colorText: Colors.white,
+        icon: const Icon(Icons.delete_outline, color: Colors.white),
+        duration: const Duration(seconds: 3),
+      );
+      return true;
+    } catch (e) {
+      debugPrint('Delete memory error: $e');
+      final cleanMsg = e.toString().replaceAll('Exception: ', '');
+      Get.snackbar(
+        "Delete Failed",
+        cleanMsg,
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.withValues(alpha: 0.85),
+        colorText: Colors.white,
+        duration: const Duration(seconds: 4),
+      );
+      return false;
+    } finally {
+      deletingMemoryId.value = null;
+    }
+  }
+
+  // ============================================
+  // 6️⃣ SHARE MEMORY RECAP (SOCIAL MEDIA)
+  // ============================================
+
+  Future<void> shareMemory(BuildContext context, Memories memory) async {
+    final id = memory.recapId ?? memory.id;
+    if (id == null) return;
+
+    final token = StorageService.getToken();
+    if (token == null || token.isEmpty) {
+      Get.snackbar(
+        "Authentication Error",
+        "User not logged in. Please log in again.",
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.withValues(alpha: 0.85),
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    try {
+      sharingMemoryId.value = id;
+
+      // 1. Call backend share API
+      String shareUrl = memory.videoUrl ?? '';
+      String shareText = 'Check out this memory recap from Lil Diary! 🎥✨';
+
+      try {
+        final shareData = await _memoriesApi.getShareInfo(
+          memoryId: id,
+          token: token,
+        );
+        if (shareData['share_url'] != null &&
+            shareData['share_url'].toString().isNotEmpty) {
+          shareUrl = shareData['share_url'].toString();
+        }
+        if (shareData['share_text'] != null &&
+            shareData['share_text'].toString().isNotEmpty) {
+          shareText = shareData['share_text'].toString();
+        }
+      } catch (apiErr) {
+        debugPrint('[MEMORIES SHARE API] Notice: $apiErr, using local fallback');
+        if (shareUrl.isNotEmpty) {
+          shareText =
+              'Check out my memory recap: "${memory.title ?? "Memory Recap"}" on Lil Diary! 🎥✨\n$shareUrl';
+        }
+      }
+
+      // 2. Share video file if available, or fallback to URL share
+      final videoTargetUrl =
+          shareUrl.isNotEmpty ? shareUrl : (memory.videoUrl ?? '');
+      if (videoTargetUrl.isNotEmpty) {
+        final resolvedUrl = videoTargetUrl.startsWith('http')
+            ? videoTargetUrl
+            : '${ApiConstants.baseUrl}/${videoTargetUrl.startsWith('/') ? videoTargetUrl.substring(1) : videoTargetUrl}';
+
+        try {
+          final tempDir = await getTemporaryDirectory();
+          final sanitizedName = 'memory_recap_$id.mp4';
+          final targetFile = File('${tempDir.path}/$sanitizedName');
+
+          if (!await targetFile.exists() || (await targetFile.length()) == 0) {
+            final uri = Uri.parse(resolvedUrl);
+            final res =
+                await http.get(uri).timeout(const Duration(seconds: 40));
+            if (res.statusCode == 200 && res.bodyBytes.isNotEmpty) {
+              await targetFile.writeAsBytes(res.bodyBytes);
+            }
+          }
+
+          if (await targetFile.exists() && (await targetFile.length()) > 0) {
+            final xFile = XFile(
+              targetFile.path,
+              mimeType: 'video/mp4',
+              name: sanitizedName,
+            );
+            await Share.shareXFiles(
+              [xFile],
+              text: shareText,
+              subject: memory.title ?? 'Memory Recap',
+            );
+            return;
+          }
+        } catch (downloadErr) {
+          debugPrint(
+              '[MEMORIES SHARE FILE ERROR] Could not cache video file: $downloadErr');
+        }
+      }
+
+      // Fallback to text + URL sharing
+      await Share.share(
+        shareText,
+        subject: memory.title ?? 'Memory Recap',
+      );
+    } catch (e) {
+      debugPrint('Share memory error: $e');
+      Get.snackbar(
+        "Sharing Error",
+        "Could not prepare memory recap for sharing.",
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.withValues(alpha: 0.85),
+        colorText: Colors.white,
+        duration: const Duration(seconds: 4),
+      );
+    } finally {
+      sharingMemoryId.value = null;
+    }
+  }
+}
