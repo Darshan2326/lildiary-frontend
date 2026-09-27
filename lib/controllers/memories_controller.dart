@@ -4,6 +4,8 @@ import 'package:get/get.dart';
 import 'package:lildairy/api/memories_api.dart';
 import 'package:lildairy/models/user.dart';
 import 'package:lildairy/services/storage_service.dart';
+import 'package:lildairy/utils/api_constants.dart';
+import 'package:video_player/video_player.dart';
 
 class MemoriesController extends GetxController {
   final MemoriesApi _memoriesApi = MemoriesApi();
@@ -22,6 +24,12 @@ class MemoriesController extends GetxController {
   final RxString selectedCategory = 'calm'.obs;
   final Rxn<MusicTrack> selectedTrack = Rxn<MusicTrack>();
   final RxBool isLoadingMusic = false.obs;
+
+  // Track Audio Preview Observables (Instagram style)
+  VideoPlayerController? _previewPlayer;
+  final RxnInt playingTrackId = RxnInt(null);
+  final RxBool isPreviewPlaying = false.obs;
+  final RxBool isPreviewBuffering = false.obs;
 
   // Track active periodic polling timers by recap ID
   final Map<int, Timer> _pollingTimers = {};
@@ -52,6 +60,7 @@ class MemoriesController extends GetxController {
   }
 
   void selectCategory(String category) {
+    stopTrackPreview();
     selectedCategory.value = category;
     selectedTrack.value = null;
     fetchMusicCatalog(category: category);
@@ -64,8 +73,131 @@ class MemoriesController extends GetxController {
     }
   }
 
+  // ============================================
+  // TRACK AUDIO PREVIEW ENGINE (INSTAGRAM STYLE)
+  // ============================================
+
+  String resolveTrackUrl(String? rawUrl) {
+    if (rawUrl == null || rawUrl.trim().isEmpty) return '';
+    final url = rawUrl.trim();
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    final clean = url.startsWith('/') ? url.substring(1) : url;
+    return '${ApiConstants.baseUrl}/$clean';
+  }
+
+  Future<void> toggleTrackPreview(MusicTrack track) async {
+    final trackUrl = resolveTrackUrl(track.fileUrl);
+    if (trackUrl.isEmpty) {
+      Get.snackbar(
+        "Preview Unavailable",
+        "No audio sample available for \"${track.title}\"",
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.black87,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 2),
+      );
+      return;
+    }
+
+    // If currently playing or paused on this exact track: toggle play/pause
+    if (playingTrackId.value == track.id && _previewPlayer != null) {
+      if (_previewPlayer!.value.isPlaying) {
+        await _previewPlayer!.pause();
+        isPreviewPlaying.value = false;
+      } else {
+        await _previewPlayer!.play();
+        isPreviewPlaying.value = true;
+      }
+      return;
+    }
+
+    // Otherwise, stop previous and start this track
+    await stopTrackPreview();
+
+    try {
+      playingTrackId.value = track.id;
+      isPreviewBuffering.value = true;
+      isPreviewPlaying.value = false;
+
+      final uri = Uri.tryParse(trackUrl);
+      if (uri == null) throw Exception("Invalid URL: $trackUrl");
+
+      debugPrint('[TRACK PREVIEW] Initializing preview from URL: $trackUrl');
+      final controller = VideoPlayerController.networkUrl(uri);
+      _previewPlayer = controller;
+
+      await controller.initialize();
+
+      // Ensure another track hasn't been requested in the meantime
+      if (playingTrackId.value != track.id) {
+        controller.dispose();
+        return;
+      }
+
+      await controller.setLooping(true);
+      await controller.play();
+
+      isPreviewBuffering.value = false;
+      isPreviewPlaying.value = true;
+
+      controller.addListener(() {
+        if (playingTrackId.value == track.id) {
+          isPreviewPlaying.value = controller.value.isPlaying;
+          isPreviewBuffering.value = controller.value.isBuffering;
+          if (controller.value.hasError) {
+            debugPrint(
+                '[TRACK PREVIEW ERROR] ${controller.value.errorDescription}');
+            stopTrackPreview();
+          }
+        }
+      });
+    } catch (e) {
+      debugPrint('[TRACK PREVIEW ERROR] $e');
+      stopTrackPreview();
+      Get.snackbar(
+        "Audio Playback",
+        "Could not play preview for \"${track.title}\"",
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.black87,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 2),
+      );
+    }
+  }
+
+  Future<void> pauseTrackPreview() async {
+    try {
+      if (_previewPlayer != null && _previewPlayer!.value.isPlaying) {
+        await _previewPlayer!.pause();
+        isPreviewPlaying.value = false;
+      }
+    } catch (e) {
+      debugPrint('[TRACK PREVIEW ERROR] Pause error: $e');
+    }
+  }
+
+  Future<void> stopTrackPreview() async {
+    try {
+      if (_previewPlayer != null) {
+        final player = _previewPlayer!;
+        _previewPlayer = null;
+        await player.pause();
+        await player.dispose();
+      }
+    } catch (e) {
+      debugPrint('[TRACK PREVIEW ERROR] Stop error: $e');
+    } finally {
+      playingTrackId.value = null;
+      isPreviewPlaying.value = false;
+      isPreviewBuffering.value = false;
+    }
+  }
+
   @override
   void onClose() {
+    stopTrackPreview();
     _stopAllPolling();
     super.onClose();
   }
@@ -133,6 +265,7 @@ class MemoriesController extends GetxController {
   // ============================================
 
   Future<void> generateCustomRecap(RecapGenerateRequest request) async {
+    stopTrackPreview();
     final token = StorageService.getToken();
     if (token == null || token.isEmpty) {
       Get.snackbar(
