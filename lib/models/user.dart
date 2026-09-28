@@ -165,6 +165,8 @@ class Memories {
   int? memoriesCount;
   String? errorMessage;
   String? createdAt;
+  String? frameStyle;
+  String? theme;
 
   Memories({
     this.id,
@@ -184,12 +186,14 @@ class Memories {
     this.memoriesCount,
     this.errorMessage,
     this.createdAt,
+    this.frameStyle,
+    this.theme,
   });
 
   Memories.fromJson(Map<String, dynamic> json) {
     id = json['id'] ?? json['recap_id'];
     recapId = json['recap_id'] ?? json['id'];
-    title = json['title'];
+    title = json['title'] ?? 'Memory Recap';
     description = json['description'];
     videoUrl = json['video_url'];
     thumbnailUrl = json['thumbnail_url'];
@@ -208,13 +212,15 @@ class Memories {
         : null;
     errorMessage = json['error_message'];
     createdAt = json['created_at'];
+    frameStyle = json['frame_style'];
+    theme = json['theme'];
   }
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = <String, dynamic>{};
     data['id'] = this.id;
     data['recap_id'] = this.recapId ?? this.id;
-    data['title'] = this.title;
+    data['title'] = this.title ?? 'Memory Recap';
     data['description'] = this.description;
     data['video_url'] = this.videoUrl;
     data['thumbnail_url'] = this.thumbnailUrl;
@@ -229,6 +235,12 @@ class Memories {
     data['memories_count'] = this.memoriesCount;
     data['error_message'] = this.errorMessage;
     data['created_at'] = this.createdAt;
+    if (this.frameStyle != null) {
+      data['frame_style'] = this.frameStyle;
+    }
+    if (this.theme != null) {
+      data['theme'] = this.theme;
+    }
     return data;
   }
 }
@@ -285,6 +297,7 @@ class RecapGenerateRequest {
   final String backgroundMusic;
   final int? songId;
   final String theme;
+  final String? frameStyle;
   final int maxMemories;
 
   const RecapGenerateRequest({
@@ -293,6 +306,7 @@ class RecapGenerateRequest {
     this.backgroundMusic = "calm",
     this.songId,
     this.theme = "classic",
+    this.frameStyle,
     this.maxMemories = 40,
   });
 
@@ -304,6 +318,11 @@ class RecapGenerateRequest {
     };
     if (songId != null) {
       data['song_id'] = songId;
+    }
+    if (frameStyle != null &&
+        frameStyle!.trim().isNotEmpty &&
+        frameStyle!.trim().toLowerCase() != 'auto') {
+      data['frame_style'] = frameStyle!.trim();
     }
     if (startDate != null && startDate!.trim().isNotEmpty) {
       data['start_date'] = startDate!.trim();

@@ -404,9 +404,11 @@ class Memoriesscreen extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            "Memory Recap",
-                            style: TextStyle(
+                          Text(
+                            memory.title?.isNotEmpty == true
+                                ? memory.title!
+                                : "Memory Recap",
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
@@ -422,6 +424,17 @@ class Memoriesscreen extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
+                          if (memory.frameStyle?.isNotEmpty == true) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              "Frame: ${_frameStyleLabel(memory.frameStyle!)}",
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.amber.shade800,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -648,7 +661,7 @@ class Memoriesscreen extends StatelessWidget {
                   ),
                 ),
 
-              // Badges overlay top left (Duration & Count)
+              // Badges overlay top left (Duration & Count & Frame)
               if (isReady)
                 Positioned(
                   top: 12,
@@ -662,10 +675,19 @@ class Memoriesscreen extends StatelessWidget {
                         ),
                         const SizedBox(width: 6),
                       ],
-                      if (memory.memoriesCount != null)
+                      if (memory.memoriesCount != null) ...[
                         _buildGlassChip(
                           icon: Icons.collections_outlined,
                           text: "${memory.memoriesCount} moments",
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                      if (memory.frameStyle?.isNotEmpty == true)
+                        _buildGlassChip(
+                          icon: memory.frameStyle!.toLowerCase() == 'school'
+                              ? Icons.school_outlined
+                              : Icons.palette_outlined,
+                          text: _frameStyleLabel(memory.frameStyle!),
                         ),
                     ],
                   ),
@@ -819,7 +841,7 @@ class Memoriesscreen extends StatelessWidget {
                             ],
                           ),
                           if (memory.musicCategory?.isNotEmpty == true ||
-                              memory.mood?.isNotEmpty == true)
+                              memory.mood?.isNotEmpty == true) ...[
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 8,
@@ -836,6 +858,31 @@ class Memoriesscreen extends StatelessWidget {
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: Colors.blue.shade800,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                          ],
+                          if (memory.frameStyle?.isNotEmpty == true)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: memory.frameStyle!.toLowerCase() == 'pastel'
+                                    ? const Color(0xFFFCE4EC)
+                                    : const Color(0xFFFFF3E0),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                _frameStyleLabel(memory.frameStyle!),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: memory.frameStyle!.toLowerCase() == 'pastel'
+                                      ? const Color(0xFFC2185B)
+                                      : const Color(0xFFE65100),
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -1023,6 +1070,7 @@ class Memoriesscreen extends StatelessWidget {
     String selectedCategory = "calm";
     MusicTrack? selectedSong;
     String selectedTheme = "classic";
+    String? selectedFrameStyle;
     double maxMemories = 40;
     bool isDropdownOpen = false;
 
@@ -1948,6 +1996,145 @@ class Memoriesscreen extends StatelessWidget {
                       );
                     }),
 
+                    // Decorative Thumbnail Frame Style Selector (Pastel, School, or Auto)
+                    const Row(
+                      children: [
+                        Icon(
+                          Icons.filter_frames_rounded,
+                          size: 16,
+                          color: Color(0xFF0288D1),
+                        ),
+                        SizedBox(width: 6),
+                        Text(
+                          "Decorative Thumbnail Frame",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      "Choose thumbnail frame: Pastel, School, or Auto",
+                      style: TextStyle(fontSize: 12, color: Colors.black54),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        _buildFrameStyleOption(
+                          title: "Auto",
+                          subtitle: "AI Choice",
+                          emoji: "🪄",
+                          isSelected: selectedFrameStyle == null,
+                          onTap: () {
+                            setStateModal(() => selectedFrameStyle = null);
+                          },
+                        ),
+                        const SizedBox(width: 10),
+                        _buildFrameStyleOption(
+                          title: "Pastel",
+                          subtitle: "Soft colors",
+                          emoji: "🎨",
+                          isSelected: selectedFrameStyle == "pastel",
+                          onTap: () {
+                            setStateModal(() => selectedFrameStyle = "pastel");
+                          },
+                        ),
+                        const SizedBox(width: 10),
+                        _buildFrameStyleOption(
+                          title: "School",
+                          subtitle: "Scrapbook",
+                          emoji: "🎒",
+                          isSelected: selectedFrameStyle == "school",
+                          onTap: () {
+                            setStateModal(() => selectedFrameStyle = "school");
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Recap Theme Selector
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.palette_outlined,
+                          size: 16,
+                          color: Color(0xFF0288D1),
+                        ),
+                        const SizedBox(width: 6),
+                        const Text(
+                          "Recap Theme",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        InkWell(
+                          onTap: () {
+                            _showThemeInfoDialog(
+                              context,
+                              selectedTheme: selectedTheme,
+                              onSelectTheme: (newTheme) {
+                                setStateModal(() {
+                                  selectedTheme = newTheme;
+                                });
+                              },
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.all(3),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFE1F5FE),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.info_outline_rounded,
+                              size: 16,
+                              color: Color(0xFF0288D1),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        {"key": "classic", "label": "🏛️ Classic"},
+                        {"key": "vibrant", "label": "🌈 Vibrant"},
+                        {"key": "minimal", "label": "⚪ Minimal"},
+                        {"key": "vintage", "label": "🎞️ Vintage"},
+                      ].map((thm) {
+                        final isSel = selectedTheme == thm["key"];
+                        return ChoiceChip(
+                          label: Text(thm["label"]!),
+                          selected: isSel,
+                          selectedColor: const Color(0xFF81D4FA),
+                          backgroundColor: Colors.grey.shade100,
+                          labelStyle: TextStyle(
+                            color: isSel ? Colors.black87 : Colors.black54,
+                            fontWeight:
+                                isSel ? FontWeight.bold : FontWeight.normal,
+                          ),
+                          onSelected: (val) {
+                            if (val) {
+                              setStateModal(() {
+                                selectedTheme = thm["key"]!;
+                              });
+                            }
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 16),
+
                     // Maximum Memories Slider
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2016,6 +2203,7 @@ class Memoriesscreen extends StatelessWidget {
                             backgroundMusic: selectedCategory,
                             songId: selectedSong?.id,
                             theme: selectedTheme,
+                            frameStyle: selectedFrameStyle,
                             maxMemories: maxMemories.round(),
                           );
 
@@ -2182,7 +2370,28 @@ class Memoriesscreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                  ] else if (current.childName?.isNotEmpty == true) ...[
+                  ],
+                  if (current.frameStyle?.isNotEmpty == true) ...[
+                    Text(
+                      "Frame Style: ${_frameStyleLabel(current.frameStyle)}",
+                      style: const TextStyle(
+                        color: Colors.black87,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                  ],
+                  if (current.theme?.isNotEmpty == true) ...[
+                    Text(
+                      "Theme: ${current.theme!.capitalizeFirst}",
+                      style: const TextStyle(
+                        color: Colors.black87,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                  ],
+                  if (current.childName?.isNotEmpty == true) ...[
                     Text(
                       "Child: ${current.childName}",
                       style: const TextStyle(color: Colors.black87),
@@ -2429,6 +2638,320 @@ class Memoriesscreen extends StatelessWidget {
       default:
         return '😊';
     }
+  }
+
+  String _frameStyleLabel(String? frameStyle) {
+    if (frameStyle == null || frameStyle.isEmpty) return "Auto";
+    switch (frameStyle.toLowerCase()) {
+      case 'pastel':
+        return "🎨 Pastel";
+      case 'school':
+        return "🎒 School";
+      default:
+        return frameStyle;
+    }
+  }
+
+  Widget _buildFrameStyleOption({
+    required String title,
+    required String subtitle,
+    required String emoji,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFFE1F5FE) : Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isSelected
+                  ? const Color(0xFF0288D1)
+                  : Colors.grey.shade300,
+              width: isSelected ? 1.8 : 1,
+            ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: const Color(0xFF0288D1).withValues(alpha: 0.12),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : [],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                emoji,
+                style: const TextStyle(fontSize: 22),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                title,
+                style: TextStyle(
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                  fontSize: 13,
+                  color: isSelected ? const Color(0xFF0288D1) : Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  color: isSelected ? const Color(0xFF0288D1) : Colors.black54,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showThemeInfoDialog(
+    BuildContext context, {
+    String? selectedTheme,
+    ValueChanged<String>? onSelectTheme,
+  }) {
+    final List<Map<String, dynamic>> themeDetails = [
+      {
+        "key": "classic",
+        "emoji": "🏛️",
+        "title": "Classic (Default)",
+        "badge": "Recommended",
+        "badgeColor": const Color(0xFF0288D1),
+        "desc":
+            "Smooth cross-fades with gentle Ken Burns pan & zoom. Balanced cinematic rhythm with clean, timeless title cards.",
+        "bestFor": "Everyday memories, family moments & milestones",
+      },
+      {
+        "key": "vibrant",
+        "emoji": "🌈",
+        "title": "Vibrant",
+        "badge": "Energetic",
+        "badgeColor": const Color(0xFFE91E63),
+        "desc":
+            "Dynamic slide transitions with bright, saturated color tones and lively pacing synced to upbeat tempo.",
+        "bestFor": "Vacations, birthday celebrations & outdoor playdates",
+      },
+      {
+        "key": "minimal",
+        "emoji": "⚪",
+        "title": "Minimal",
+        "badge": "Clean",
+        "badgeColor": Colors.blueGrey,
+        "desc":
+            "Subtle soft cuts with natural color grading and modern, understated typography for a distraction-free feel.",
+        "bestFor": "Peaceful days, portraits & candid quiet memories",
+      },
+      {
+        "key": "vintage",
+        "emoji": "🎞️",
+        "title": "Vintage",
+        "badge": "Nostalgic",
+        "badgeColor": const Color(0xFF8D6E63),
+        "desc":
+            "Warm retro film tones, gentle sepia hues, soft light leaks, and nostalgic slide pacing.",
+        "bestFor": "Throwbacks, childhood memories & sentimental recaps",
+      },
+    ];
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(22),
+        ),
+        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+        contentPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE1F5FE),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.palette_outlined,
+                color: Color(0xFF0288D1),
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Recap Themes Guide",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    "What each video theme looks like",
+                    style: TextStyle(fontSize: 12, color: Colors.black54),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: themeDetails.map((thm) {
+                final isCurrent = selectedTheme == thm["key"];
+                return InkWell(
+                  onTap: () {
+                    if (onSelectTheme != null) {
+                      onSelectTheme(thm["key"] as String);
+                    }
+                    Navigator.pop(ctx);
+                  },
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isCurrent
+                          ? const Color(0xFFE1F5FE)
+                          : Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isCurrent
+                            ? const Color(0xFF0288D1)
+                            : Colors.grey.shade200,
+                        width: isCurrent ? 1.5 : 1,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              thm["emoji"] as String,
+                              style: const TextStyle(fontSize: 18),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                thm["title"] as String,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: isCurrent
+                                      ? const Color(0xFF0288D1)
+                                      : Colors.black87,
+                                ),
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 7,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: (thm["badgeColor"] as Color)
+                                    .withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                thm["badge"] as String,
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: thm["badgeColor"] as Color,
+                                ),
+                              ),
+                            ),
+                            if (isCurrent) ...[
+                              const SizedBox(width: 6),
+                              const Icon(
+                                Icons.check_circle_rounded,
+                                size: 18,
+                                color: Color(0xFF0288D1),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          thm["desc"] as String,
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            color: Colors.black87,
+                            height: 1.3,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(
+                              Icons.auto_awesome,
+                              size: 13,
+                              color: Color(0xFF0288D1),
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                "Best for: ${thm['bestFor']}",
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey.shade700,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0288D1),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 11),
+              ),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text(
+                "Got it ✨",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
