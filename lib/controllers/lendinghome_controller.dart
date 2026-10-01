@@ -33,6 +33,10 @@ class LendingHomeController extends GetxController {
   }
 
   Future<void> loadUserData() async {
+    if (!authController.isLoggedIn.value) {
+      return;
+    }
+
     try {
       isLoading.value = true;
       errorMessage.value = '';
@@ -48,6 +52,9 @@ class LendingHomeController extends GetxController {
       diaries.clear();
     } finally {
       isLoading.value = false;
+      if (userName.value.isEmpty && authController.currentUser.value == null) {
+        userName.value = 'Offline';
+      }
     }
   }
 

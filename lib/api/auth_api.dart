@@ -8,6 +8,17 @@ import '../models/user.dart';
 import '../utils/api_constants.dart';
 import 'ApiClient/api_client.dart';
 
+export 'ApiClient/api_client.dart' show NetworkException;
+
+class SessionExpiredException implements Exception {
+  final String message;
+
+  const SessionExpiredException([this.message = 'Session expired or invalid token']);
+
+  @override
+  String toString() => 'Exception: $message';
+}
+
 class AuthApi {
   final ApiClient _apiClient = ApiClient();
 
@@ -64,6 +75,9 @@ class AuthApi {
     );
 
     if (response.statusCode != 200 && response.statusCode != 204) {
+      if (response.statusCode == 401) {
+        throw const SessionExpiredException('Session expired or invalid token');
+      }
       throw Exception(
         'Logout failed: ${response.statusCode}. Response: ${response.body}',
       );
@@ -89,7 +103,7 @@ class AuthApi {
     }
 
     if (response.statusCode == 401) {
-      throw Exception('Session expired or invalid token');
+      throw const SessionExpiredException('Session expired or invalid token');
     }
 
     throw Exception(
