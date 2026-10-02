@@ -17,11 +17,14 @@ class SignupScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      resizeToAvoidBottomInset: false,
-      body: Padding(
-        padding: const EdgeInsets.only(top: 40),
-        child: SingleChildScrollView(
-          child: SafeArea(
+      resizeToAvoidBottomInset: true,
+      body: SafeArea(
+        child: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
+          child: SingleChildScrollView(
+            physics: const ClampingScrollPhysics(),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.symmetric(vertical: 20),
             child: Obx(
               () => AnimatedOpacity(
                 duration: const Duration(seconds: 1),
@@ -32,13 +35,13 @@ class SignupScreen extends StatelessWidget {
                   children: [
                     // Logo
                     SizedBox(
-                      height: height / 7,
+                      height: (height / 8).clamp(60.0, 110.0),
                       child: Image.asset(
                         'assets/logos/Logo_trans.png',
                       ),
                     ),
 
-                    const SizedBox(height: 50),
+                    const SizedBox(height: 20),
 
                     // Register Title
                     const Align(
@@ -71,6 +74,8 @@ class SignupScreen extends StatelessWidget {
                       ),
                     ),
 
+                    const SizedBox(height: 10),
+
                     // Name
                     TextFieldInput(
                       icon: Icons.person,
@@ -81,7 +86,7 @@ class SignupScreen extends StatelessWidget {
 
                     // Username
                     TextFieldInput(
-                      icon: Icons.person,
+                      icon: Icons.person_outline,
                       textEditingController: controller.usernameController,
                       hintText: 'Enter your username',
                       textInputType: TextInputType.text,
@@ -106,7 +111,7 @@ class SignupScreen extends StatelessWidget {
 
                     // Confirm Password
                     TextFieldInput(
-                      icon: Icons.lock,
+                      icon: Icons.lock_outline,
                       textEditingController:
                           controller.confirmpasswordController,
                       hintText: 'Enter your confirm password',
@@ -114,7 +119,7 @@ class SignupScreen extends StatelessWidget {
                       isPass: true,
                     ),
 
-                    const SizedBox(height: 50),
+                    const SizedBox(height: 25),
 
                     // Signup Button
                     Obx(
@@ -152,6 +157,8 @@ class SignupScreen extends StatelessWidget {
                         ),
                       ],
                     ),
+
+                    const SizedBox(height: 35),
                   ],
                 ),
               ),

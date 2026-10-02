@@ -558,14 +558,97 @@ class Memoriesscreen extends StatelessWidget {
   // COMPLETED / FAILED MEMORY CARD
   // ============================================
 
+  Widget _buildPosterFallback(
+    Memories memory,
+    bool isReady,
+    bool isFailed,
+    bool isGenerating,
+  ) {
+    return Container(
+      height: 210,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isFailed
+              ? [Colors.red.shade100, Colors.red.shade50]
+              : isGenerating
+                  ? [const Color(0xFFFFF3E0), const Color(0xFFFFE0B2)]
+                  : [const Color(0xFFB4DCF1), const Color(0xFFF1C6D4)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (isGenerating) ...[
+              const SizedBox(
+                width: 38,
+                height: 38,
+                child: CircularProgressIndicator(
+                  strokeWidth: 3,
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0288D1)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                memory.statusMessage ?? 'Generating memory recap...',
+                style: const TextStyle(
+                  color: Color(0xFF0277BD),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ] else ...[
+              Icon(
+                isFailed
+                    ? Icons.error_outline_rounded
+                    : Icons.movie_filter_outlined,
+                size: 58,
+                color: isFailed
+                    ? Colors.redAccent
+                    : Colors.white.withValues(alpha: 0.85),
+              ),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  isFailed
+                      ? 'Recap generation failed'
+                      : (memory.title ?? 'Lil Diary Memory Recap'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: isFailed
+                        ? Colors.redAccent
+                        : Colors.white.withValues(alpha: 0.9),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildMemoryCard(
     BuildContext context,
     Memories memory,
     MemoriesController controller,
   ) {
-    final mediaUrl = memory.thumbnailUrl?.isNotEmpty == true
-        ? memory.thumbnailUrl!
-        : (memory.videoUrl ?? '');
+    final rawThumb = memory.thumbnailUrl?.trim();
+    final thumbnailUrl = (rawThumb != null && rawThumb.isNotEmpty)
+        ? MediaUtils.resolvePath(rawThumb)
+        : null;
+
+    final rawVideo = memory.videoUrl?.trim();
+    final videoUrl = (rawVideo != null && rawVideo.isNotEmpty)
+        ? MediaUtils.resolvePath(rawVideo)
+        : null;
 
     final createdAt = DateTime.tryParse(memory.createdAt ?? '');
     final formattedDate = createdAt != null
@@ -585,8 +668,9 @@ class Memoriesscreen extends StatelessWidget {
     final status = (memory.status ?? 'ready').toLowerCase();
     final isReady = status == 'completed' ||
         status == 'ready' ||
-        (memory.videoUrl != null && memory.videoUrl!.isNotEmpty);
+        (videoUrl != null && videoUrl.isNotEmpty);
     final isFailed = status == 'failed';
+    final isGenerating = status == 'processing' || status == 'generating';
 
     return Card(
       elevation: 3,
@@ -601,54 +685,48 @@ class Memoriesscreen extends StatelessWidget {
           // Media / Video Preview
           Stack(
             children: [
-              if (mediaUrl.isNotEmpty)
+              if (thumbnailUrl != null && thumbnailUrl.isNotEmpty)
                 SizedBox(
                   height: 210,
                   width: double.infinity,
-                  child: SmartMediaWidget(
-                    mediaPath: mediaUrl,
+                  child: Image.network(
+                    thumbnailUrl,
                     fit: BoxFit.cover,
+                    loadingBuilder: (context, child, progress) {
+                      if (progress == null) return child;
+                      return Container(
+                        height: 210,
+                        color: Colors.grey.shade100,
+                        child: const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) =>
+                        _buildPosterFallback(
+                            memory, isReady, isFailed, isGenerating),
                   ),
                 )
               else
-                Container(
-                  height: 210,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: isFailed
-                          ? [Colors.red.shade100, Colors.red.shade50]
-                          : [
-                              const Color(0xFFB4DCF1),
-                              const Color(0xFFF1C6D4)
-                            ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                  child: Center(
-                    child: Icon(
-                      isFailed
-                          ? Icons.error_outline_rounded
-                          : Icons.movie_filter_outlined,
-                      size: 64,
-                      color: isFailed ? Colors.redAccent : Colors.white70,
-                    ),
-                  ),
-                ),
+                _buildPosterFallback(memory, isReady, isFailed, isGenerating),
 
               // Play button overlay if video is available
-              if (memory.videoUrl != null &&
-                  memory.videoUrl!.isNotEmpty &&
-                  isReady)
+              if (videoUrl != null && videoUrl.isNotEmpty && isReady)
                 Positioned.fill(
                   child: Center(
                     child: GestureDetector(
-                      onTap: () => _playVideo(context, memory.videoUrl!),
+                      onTap: () => _playVideo(context, videoUrl),
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.5),
+                          color: Colors.black.withValues(alpha: 0.55),
                           shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.3),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
                         ),
                         padding: const EdgeInsets.all(14),
                         child: const Icon(
@@ -2229,11 +2307,12 @@ class Memoriesscreen extends StatelessWidget {
   // ============================================
 
   void _playVideo(BuildContext context, String videoUrl) {
+    final resolvedUrl = MediaUtils.resolvePath(videoUrl);
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => FullScreenMediaViewer(
-          mediaPath: videoUrl,
+          mediaPath: resolvedUrl,
         ),
       ),
     );

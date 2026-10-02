@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lildairy/api/auth_api.dart';
+import 'package:lildairy/controllers/login_controller.dart';
+import 'package:lildairy/screens/HomeScreen.dart';
 
 class SignupController extends GetxController {
   final AuthApi _authApi = AuthApi();
@@ -44,27 +46,51 @@ class SignupController extends GetxController {
   }) async {
     try {
       isLoading.value = true;
-      errorMessage.value = "";
+      errorMessage.value = '';
 
-      final result = await _authApi.RegisterAPI(
+      // 1. Register the user
+      await _authApi.RegisterAPI(
         name: name,
         username: username,
         email: email,
         password: password,
         confirm_password: confirm_password,
       );
-      Get.snackbar(
-        'Success',
-        'Rregister successful',
+
+      // 2. Automatically log in the user
+      final AuthController authController = Get.find<AuthController>();
+
+      final loginResponse = await _authApi.login(
+        identifier: username,
+        password: password,
       );
-    } catch (error, stackTrace) {
-      debugPrint('[AUTH ERROR] Login failed: $error');
-      debugPrint('[AUTH ERROR] Stack trace: $stackTrace');
-      errorMessage.value = error.toString();
+
+      await authController.login(loginResponse.accessToken);
+      await authController.fetchCurrentUser();
+
+      // 3. Redirect to Home Screen
+      Get.offAll(() => NotesHomeScreen());
 
       Get.snackbar(
-        'Login Failed',
-        error.toString(),
+        'Welcome!',
+        'Account created successfully. Welcome to LilDairy!',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.green.shade600,
+        colorText: Colors.white,
+      );
+    } catch (error, stackTrace) {
+      debugPrint('[AUTH ERROR] Registration failed: $error');
+      debugPrint('[AUTH ERROR] Stack trace: $stackTrace');
+
+      final errorMsg = error.toString().replaceAll('Exception: ', '').trim();
+      errorMessage.value = errorMsg;
+
+      Get.snackbar(
+        'Registration Failed',
+        errorMsg,
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.shade600,
+        colorText: Colors.white,
       );
     } finally {
       isLoading.value = false;
@@ -72,11 +98,95 @@ class SignupController extends GetxController {
   }
 
   void signupUser() async {
+    final name = nameController.text.trim();
+    final username = usernameController.text.trim();
+    final email = emailController.text.trim();
+    final password = passwordController.text;
+    final confirmPassword = confirmpasswordController.text;
+
+    if (name.isEmpty) {
+      Get.snackbar(
+        'Required Field',
+        'Please enter your name',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.shade600,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    if (username.isEmpty) {
+      Get.snackbar(
+        'Required Field',
+        'Please enter your username',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.shade600,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    if (username.length < 3) {
+      Get.snackbar(
+        'Invalid Username',
+        'Username must be at least 3 characters',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.shade600,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    if (email.isEmpty || !GetUtils.isEmail(email)) {
+      Get.snackbar(
+        'Invalid Email',
+        'Please enter a valid email address',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.shade600,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    if (password.isEmpty) {
+      Get.snackbar(
+        'Required Field',
+        'Please enter your password',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.shade600,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    if (password.length < 6) {
+      Get.snackbar(
+        'Weak Password',
+        'Password must be at least 6 characters',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.shade600,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    if (password != confirmPassword) {
+      Get.snackbar(
+        'Password Mismatch',
+        'Passwords do not match',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.shade600,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
     await RegisterAPI(
-        name: nameController.text.trim(),
-        username: usernameController.text.trim(),
-        email: emailController.text.trim(),
-        password: passwordController.text.trim(),
-        confirm_password: confirmpasswordController.text.trim());
+      name: name,
+      username: username,
+      email: email,
+      password: password,
+      confirm_password: confirmPassword,
+    );
   }
 }

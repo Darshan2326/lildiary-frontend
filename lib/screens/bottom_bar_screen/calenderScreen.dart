@@ -188,6 +188,7 @@ class CalendarScreen extends StatelessWidget {
                         'title': title,
                         'description': description,
                         'mediaPaths': mediaPaths,
+                        'images': mediaPaths,
                         'timestamp': diary.createdAt ??
                             DateTime.now().toIso8601String(),
                       };
@@ -236,18 +237,28 @@ class CalendarScreen extends StatelessWidget {
                                     ) {
                                       final mediaPath = mediaPaths[mediaIndex];
 
-                                      return Padding(
-                                        padding: const EdgeInsets.only(
-                                          right: 6.0,
-                                        ),
-                                        child: ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                          child: SizedBox(
-                                            width: 150,
-                                            height: 150,
-                                            child: _buildMediaPreview(
-                                              mediaPath.toString(),
+                                      return GestureDetector(
+                                        onTap: () {
+                                          _viewFullNote(
+                                            context,
+                                            noteId,
+                                            noteData,
+                                            initialIndex: mediaIndex,
+                                          );
+                                        },
+                                        child: Padding(
+                                          padding: const EdgeInsets.only(
+                                            right: 6.0,
+                                          ),
+                                          child: ClipRRect(
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                            child: SizedBox(
+                                              width: 150,
+                                              height: 150,
+                                              child: _buildMediaPreview(
+                                                mediaPath.toString(),
+                                              ),
                                             ),
                                           ),
                                         ),
@@ -285,14 +296,16 @@ class CalendarScreen extends StatelessWidget {
   void _viewFullNote(
     BuildContext context,
     String noteId,
-    Map<String, dynamic> noteData,
-  ) async {
+    Map<String, dynamic> noteData, {
+    int initialIndex = 0,
+  }) async {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => NoteDetailScreen(
           noteId: noteId,
           noteData: noteData,
+          initialIndex: initialIndex,
         ),
       ),
     );

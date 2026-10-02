@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:lildairy/screens/bottom_bar_screen/add_new_note.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class AboutUsScreen extends StatelessWidget {
@@ -96,9 +95,8 @@ class AboutUsScreen extends StatelessWidget {
                         )
                     ),
                   ),
-                  onPressed: (){
-                    launch("https://lildiary.com/about/");
-
+                  onPressed: () {
+                    launchUrl(Uri.parse("https://lildiary.com/about/"));
                   },
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,

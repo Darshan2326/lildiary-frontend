@@ -112,7 +112,7 @@ class AuthApi {
       "confirm_password": confirm_password
     });
 
-    if (response.statusCode == 200) {
+    if (response.statusCode == 200 || response.statusCode == 201) {
       try {
         final data = jsonDecode(response.body);
 
@@ -125,21 +125,30 @@ class AuthApi {
         debugPrint("[AUTH] Register response parsed successfully");
         return registerResponse;
       } catch (error, stackTrace) {
-        debugPrint('[AUTH ERROR] Could not parse Resgister response: $error');
+        debugPrint('[AUTH ERROR] Could not parse Register response: $error');
         debugPrint('[AUTH ERROR] Stack trace: $stackTrace');
         throw Exception('Invalid Register response from server');
       }
     }
-    if (response.statusCode == 401) {
-      throw Exception('Invalid username/email or password');
+
+    String errorMsg = 'Registration failed (${response.statusCode})';
+    try {
+      final data = jsonDecode(response.body);
+      if (data is Map && data.containsKey('detail')) {
+        errorMsg = data['detail'].toString();
+      } else if (data is Map && data.containsKey('message')) {
+        errorMsg = data['message'].toString();
+      }
+    } catch (_) {
+      if (response.statusCode == 400) {
+        errorMsg = 'Username or email already exists';
+      } else if (response.statusCode == 401) {
+        errorMsg = 'Invalid username/email or password';
+      } else if (response.statusCode == 422) {
+        errorMsg = 'Invalid request data or passwords do not match';
+      }
     }
 
-    if (response.statusCode == 422) {
-      throw Exception('Invalid request body');
-    }
-
-    throw Exception(
-      'Login failed: ${response.statusCode}. Response: ${response.body}',
-    );
+    throw Exception(errorMsg);
   }
 }

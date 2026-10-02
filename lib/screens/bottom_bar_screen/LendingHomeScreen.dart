@@ -165,6 +165,7 @@ class lendingHomeScreen extends StatelessWidget {
                           'title': diary.title,
                           'description': diary.description,
                           'mediaPaths': mediaPaths,
+                          'images': mediaPaths,
                           'timestamp': diary.createdAt ??
                               DateTime.now().toIso8601String(),
                         };
@@ -259,14 +260,16 @@ class lendingHomeScreen extends StatelessWidget {
   void _viewFullNote(
     BuildContext context,
     String noteId,
-    Map<String, dynamic> noteData,
-  ) async {
+    Map<String, dynamic> noteData, {
+    int initialIndex = 0,
+  }) async {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => NoteDetailScreen(
           noteId: noteId,
           noteData: noteData,
+          initialIndex: initialIndex,
         ),
       ),
     );
@@ -298,7 +301,7 @@ class lendingHomeScreen extends StatelessWidget {
         // More overlay
         if (index == 3 && mediaCount > 3) {
           return GestureDetector(
-            onTap: () => _viewFullNote(context, noteId, noteData),
+            onTap: () => _viewFullNote(context, noteId, noteData, initialIndex: 3),
             child: Stack(
               fit: StackFit.expand,
               children: [
@@ -324,7 +327,7 @@ class lendingHomeScreen extends StatelessWidget {
         }
 
         return GestureDetector(
-          onTap: () => _viewFullNote(context, noteId, noteData),
+          onTap: () => _viewFullNote(context, noteId, noteData, initialIndex: index),
           child: SmartMediaWidget(
             mediaPath: mediaPaths[index],
             fit: BoxFit.cover,

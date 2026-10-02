@@ -96,6 +96,16 @@ class MemoriesController extends GetxController {
     return '${ApiConstants.baseUrl}/$clean';
   }
 
+  String resolveMediaUrl(String? rawUrl) {
+    if (rawUrl == null || rawUrl.trim().isEmpty) return '';
+    final url = rawUrl.trim();
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    final clean = url.startsWith('/') ? url.substring(1) : url;
+    return '${ApiConstants.baseUrl}/$clean';
+  }
+
   Future<void> toggleTrackPreview(MusicTrack track) async {
     final trackUrl = resolveTrackUrl(track.fileUrl);
     if (trackUrl.isEmpty) {
