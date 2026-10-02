@@ -38,6 +38,23 @@ class NoteDetailsController extends GetxController {
     update();
   }
 
+  // Update note data dynamically
+  void updateNoteData(Map<String, dynamic> newData) {
+    noteData.assignAll(newData);
+    if (currentIndex.value >= mediaPaths.length) {
+      currentIndex.value = 0;
+    }
+    update();
+  }
+
+  // Set initial carousel item index
+  void setInitialIndex(int index) {
+    if (index >= 0 && index < mediaPaths.length) {
+      currentIndex.value = index;
+      update();
+    }
+  }
+
   // Video play/pause callback
   void onVideoPlayPause(bool isPlaying, int index) {
     if (isPlaying) {
@@ -47,8 +64,20 @@ class NoteDetailsController extends GetxController {
   }
 
   // Getters for convenience
-  List<dynamic> get mediaPaths =>
-      (noteData['mediaPaths'] as List<dynamic>?) ?? <dynamic>[];
+  List<String> get mediaPaths {
+    final raw = noteData['mediaPaths'] ??
+        noteData['images'] ??
+        noteData['media'] ??
+        noteData['image_urls'];
+    if (raw is List) {
+      return raw
+          .where((item) => item != null)
+          .map((item) => item.toString().trim())
+          .where((item) => item.isNotEmpty)
+          .toList();
+    }
+    return <String>[];
+  }
 
   String get title => (noteData['title'] as String?) ?? 'No Title';
 
@@ -72,11 +101,27 @@ class NoteDetailsController extends GetxController {
   }
 
   // Open full-screen media viewer
-  void openFullScreen(BuildContext context, String rawMediaPath) {
+  void openFullScreen(
+    BuildContext context,
+    String rawMediaPath, {
+    int? initialIndex,
+  }) {
+    final list = mediaPaths;
+    final resolvedIndex = initialIndex ??
+        (list.contains(rawMediaPath)
+            ? list.indexOf(rawMediaPath)
+            : currentIndex.value);
+
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => FullScreenMediaViewer(mediaPath: rawMediaPath),
+        builder: (context) => FullScreenMediaViewer(
+          mediaPath: rawMediaPath,
+          mediaList: list,
+          initialIndex: resolvedIndex >= 0 && resolvedIndex < list.length
+              ? resolvedIndex
+              : 0,
+        ),
       ),
     );
   }

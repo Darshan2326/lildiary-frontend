@@ -195,8 +195,10 @@ class Memories {
     recapId = json['recap_id'] ?? json['id'];
     title = json['title'] ?? 'Memory Recap';
     description = json['description'];
-    videoUrl = json['video_url'];
-    thumbnailUrl = json['thumbnail_url'];
+    final rawVideo = json['video_url'] ?? json['video'] ?? json['url'] ?? json['video_path'];
+    videoUrl = rawVideo?.toString().trim();
+    final rawThumb = json['thumbnail_url'] ?? json['thumbnail'] ?? json['cover_image'] ?? json['cover_url'];
+    thumbnailUrl = rawThumb?.toString().trim();
     status = json['status'];
     progress = json['progress'] is num ? (json['progress'] as num).toInt() : null;
     statusMessage = json['status_message'];

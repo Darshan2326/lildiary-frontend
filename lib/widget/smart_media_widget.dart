@@ -11,31 +11,35 @@ class MediaUtils {
 
   /// Resolves raw path to full absolute URL if relative, or returns local file path.
   static String resolvePath(String rawPath) {
-    if (rawPath.startsWith('http://') || rawPath.startsWith('https://')) {
-      return rawPath;
+    final trimmed = rawPath.trim();
+    if (trimmed.isEmpty) return '';
+
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
     }
-    if (!File(rawPath).existsSync() &&
-        (rawPath.startsWith('/') ||
-            rawPath.contains('uploads/') ||
-            rawPath.contains('media/') ||
-            rawPath.contains('diaries/'))) {
-      final clean = rawPath.startsWith('/') ? rawPath.substring(1) : rawPath;
-      return '${ApiConstants.baseUrl}/$clean';
-    }
-    return rawPath;
+
+    // Check if it's an existing file on device filesystem
+    try {
+      if (File(trimmed).existsSync()) {
+        return trimmed;
+      }
+    } catch (_) {}
+
+    // Treat as server relative path
+    final clean = trimmed.startsWith('/') ? trimmed.substring(1) : trimmed;
+    return '${ApiConstants.baseUrl}/$clean';
   }
 
-  /// Detects whether media at path/URL is video or image.
-  static Future<SmartMediaType> detectMediaType(String rawPath) async {
+  /// Synchronously detects whether media is likely image or video without blocking.
+  static SmartMediaType? quickDetectMediaType(String rawPath) {
     final path = resolvePath(rawPath);
-
     if (_typeCache.containsKey(path)) {
-      return _typeCache[path]!;
+      return _typeCache[path];
     }
 
     final cleanPath = path.toLowerCase().split('?').first.split('#').first;
 
-    // Check file extension first
+    // Check file extension for video
     if (cleanPath.endsWith('.mp4') ||
         cleanPath.endsWith('.mov') ||
         cleanPath.endsWith('.m4v') ||
@@ -43,26 +47,54 @@ class MediaUtils {
         cleanPath.endsWith('.mkv') ||
         cleanPath.endsWith('.avi') ||
         cleanPath.endsWith('.3gp') ||
-        cleanPath.endsWith('.flv')) {
+        cleanPath.endsWith('.flv') ||
+        (cleanPath.contains('/memories/') && !cleanPath.contains('thumb'))) {
       _typeCache[path] = SmartMediaType.video;
       return SmartMediaType.video;
     }
 
+    // Check file extension or diary path for image
     if (cleanPath.endsWith('.jpg') ||
         cleanPath.endsWith('.jpeg') ||
         cleanPath.endsWith('.png') ||
         cleanPath.endsWith('.webp') ||
         cleanPath.endsWith('.gif') ||
-        cleanPath.endsWith('.bmp')) {
+        cleanPath.endsWith('.bmp') ||
+        cleanPath.endsWith('.heic') ||
+        cleanPath.endsWith('.heif') ||
+        cleanPath.contains('/diaries/') ||
+        cleanPath.contains('image') ||
+        cleanPath.contains('thumb') ||
+        cleanPath.contains('photo')) {
       _typeCache[path] = SmartMediaType.image;
       return SmartMediaType.image;
     }
 
-    // For URLs without file extension (such as Cloudflare R2 object URLs like diaries/user@email/1/uuid)
+    // Default to image for network URLs since the vast majority of media are images,
+    // and Image.network will handle decoding natively.
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      _typeCache[path] = SmartMediaType.image;
+      return SmartMediaType.image;
+    }
+
+    return null;
+  }
+
+  /// Detects whether media at path/URL is video or image.
+  static Future<SmartMediaType> detectMediaType(String rawPath) async {
+    final quick = quickDetectMediaType(rawPath);
+    if (quick != null) return quick;
+
+    final path = resolvePath(rawPath);
+    if (_typeCache.containsKey(path)) {
+      return _typeCache[path]!;
+    }
+
+    // For URLs without clear indicators
     if (path.startsWith('http://') || path.startsWith('https://')) {
       try {
         final response = await http.head(Uri.parse(path)).timeout(
-          const Duration(seconds: 4),
+          const Duration(seconds: 2),
         );
         final contentType = (response.headers['content-type'] ?? '').toLowerCase();
         if (contentType.startsWith('video/')) {
@@ -72,23 +104,7 @@ class MediaUtils {
           _typeCache[path] = SmartMediaType.image;
           return SmartMediaType.image;
         }
-      } catch (_) {
-        // Fallback: byte range request to inspect headers
-        try {
-          final response = await http.get(
-            Uri.parse(path),
-            headers: {'Range': 'bytes=0-100'},
-          ).timeout(const Duration(seconds: 4));
-          final contentType = (response.headers['content-type'] ?? '').toLowerCase();
-          if (contentType.startsWith('video/')) {
-            _typeCache[path] = SmartMediaType.video;
-            return SmartMediaType.video;
-          } else if (contentType.startsWith('image/')) {
-            _typeCache[path] = SmartMediaType.image;
-            return SmartMediaType.image;
-          }
-        } catch (_) {}
-      }
+      } catch (_) {}
     }
 
     // Default fallback
@@ -127,14 +143,28 @@ class _SmartMediaWidgetState extends State<SmartMediaWidget> {
   @override
   void initState() {
     super.initState();
-    _detect();
+    final quick = MediaUtils.quickDetectMediaType(widget.mediaPath);
+    if (quick != null) {
+      _detectedType = quick;
+      _isLoading = false;
+    } else {
+      _detect();
+    }
   }
 
   @override
   void didUpdateWidget(covariant SmartMediaWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.mediaPath != widget.mediaPath) {
-      _detect();
+      final quick = MediaUtils.quickDetectMediaType(widget.mediaPath);
+      if (quick != null) {
+        setState(() {
+          _detectedType = quick;
+          _isLoading = false;
+        });
+      } else {
+        _detect();
+      }
     }
   }
 
@@ -367,7 +397,14 @@ class _NetworkVideoPlayerWidgetState extends State<NetworkVideoPlayerWidget> {
 
   void _initController() {
     try {
-      final uri = Uri.parse(widget.url);
+      final resolved = MediaUtils.resolvePath(widget.url);
+      final uri = Uri.tryParse(resolved);
+      if (uri == null || !uri.hasScheme) {
+        debugPrint('[NETWORK VIDEO WARNING] Invalid video URI: $resolved');
+        if (mounted) setState(() => _hasError = true);
+        return;
+      }
+
       _controller = VideoPlayerController.networkUrl(uri)
         ..initialize().then((_) {
           if (mounted) {
@@ -385,14 +422,25 @@ class _NetworkVideoPlayerWidgetState extends State<NetworkVideoPlayerWidget> {
           }
         });
     } catch (e) {
-      _hasError = true;
+      debugPrint('[NETWORK VIDEO INIT ERROR] $e');
+      if (mounted) {
+        setState(() {
+          _hasError = true;
+        });
+      }
     }
   }
 
   @override
   void didUpdateWidget(covariant NetworkVideoPlayerWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (_controller.value.isInitialized) {
+    if (oldWidget.url != widget.url) {
+      try {
+        _controller.dispose();
+      } catch (_) {}
+      _hasError = false;
+      _initController();
+    } else if (!_hasError && _controller.value.isInitialized) {
       if (widget.isPlaying && !_controller.value.isPlaying) {
         _controller.play();
       } else if (!widget.isPlaying && _controller.value.isPlaying) {

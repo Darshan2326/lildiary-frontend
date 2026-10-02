@@ -8,7 +8,6 @@ class MyDialog extends StatefulWidget {
 }
 
 class _MyDialogState extends State<MyDialog> {
-  final double _progress = 0;
 
   @override
   Widget build(BuildContext context) {
