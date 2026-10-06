@@ -1,5 +1,5 @@
 class ApiConstants {
-  static const String baseUrl = "http://192.168.1.11:8001";
+  static const String baseUrl = "http://10.52.102.107:8000";
 
   static const String login = "$baseUrl/login";
   static const String logout = "$baseUrl/logout";
@@ -31,5 +31,4 @@ class ApiConstants {
       "$baseUrl/memories/music?category=$category";
   static String musicSearch(String query) =>
       "$baseUrl/memories/music?search=${Uri.encodeComponent(query)}";
-
 }
