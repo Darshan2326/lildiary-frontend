@@ -31,6 +31,7 @@ class MemoriesController extends GetxController {
   // Music Catalog Observables
   final RxList<MusicTrack> musicTracks = <MusicTrack>[].obs;
   final RxString selectedCategory = 'calm'.obs;
+  final RxString musicSearchQuery = ''.obs;
   final Rxn<MusicTrack> selectedTrack = Rxn<MusicTrack>();
   final RxBool isLoadingMusic = false.obs;
 
@@ -50,7 +51,7 @@ class MemoriesController extends GetxController {
     fetchMusicCatalog();
   }
 
-  Future<void> fetchMusicCatalog({String? category}) async {
+  Future<void> fetchMusicCatalog({String? category, String? search}) async {
     final token = StorageService.getToken();
     if (token == null || token.isEmpty) return;
 
@@ -58,6 +59,7 @@ class MemoriesController extends GetxController {
       isLoadingMusic.value = true;
       final tracks = await _memoriesApi.getMusicCatalog(
         category: category,
+        search: search,
         token: token,
       );
       musicTracks.assignAll(tracks);
@@ -66,6 +68,12 @@ class MemoriesController extends GetxController {
     } finally {
       isLoadingMusic.value = false;
     }
+  }
+
+  void searchMusic(String query) {
+    musicSearchQuery.value = query;
+    stopTrackPreview();
+    fetchMusicCatalog(search: query.trim().isNotEmpty ? query.trim() : null);
   }
 
   void selectCategory(String category) {

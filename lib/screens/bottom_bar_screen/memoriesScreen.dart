@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -1145,24 +1146,17 @@ class Memoriesscreen extends StatelessWidget {
   ) async {
     DateTime? startDate;
     DateTime? endDate;
-    String selectedCategory = "calm";
     MusicTrack? selectedSong;
     String selectedTheme = "classic";
     String? selectedFrameStyle;
     double maxMemories = 40;
     bool isDropdownOpen = false;
+    final TextEditingController searchController = TextEditingController();
+    Timer? searchDebounceTimer;
 
-    // Fetch initial tracks for default category
+    // Fetch all available tracks initially
     controller.stopTrackPreview();
-    controller.fetchMusicCatalog(category: selectedCategory);
-
-    final List<Map<String, String>> categories = [
-      {"key": "calm", "label": "🌿 Calm"},
-      {"key": "happy", "label": "☀️ Happy"},
-      {"key": "emotional", "label": "🥹 Emotional"},
-      {"key": "childhood", "label": "🧸 Childhood"},
-      {"key": "celebration", "label": "🎉 Celebration"},
-    ];
+    controller.fetchMusicCatalog();
 
     await showModalBottomSheet(
       context: context,
@@ -1331,111 +1325,162 @@ class Memoriesscreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 18),
 
-                    // Music Category Selector
-                    const Text(
-                      "Background Music Category",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: categories.map((cat) {
-                        final isSel = selectedCategory == cat["key"];
-                        return ChoiceChip(
-                          label: Text(cat["label"]!),
-                          selected: isSel,
-                          selectedColor: const Color(0xFF81D4FA),
-                          backgroundColor: Colors.grey.shade100,
-                          labelStyle: TextStyle(
-                            color: isSel ? Colors.black87 : Colors.black54,
-                            fontWeight:
-                                isSel ? FontWeight.bold : FontWeight.normal,
-                          ),
-                          onSelected: (val) {
-                            if (val) {
+                    // Background Music Search & Selection
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(
+                              Icons.library_music_rounded,
+                              size: 16,
+                              color: Color(0xFF0288D1),
+                            ),
+                            SizedBox(width: 6),
+                            Text(
+                              "Background Music",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (selectedSong != null)
+                          InkWell(
+                            onTap: () {
                               controller.stopTrackPreview();
                               setStateModal(() {
-                                selectedCategory = cat["key"]!;
                                 selectedSong = null;
-                                isDropdownOpen = false;
                               });
-                              controller.fetchMusicCatalog(
-                                category: selectedCategory,
-                              );
-                            }
-                          },
-                        );
-                      }).toList(),
+                            },
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 2,
+                              ),
+                              child: Text(
+                                "Reset to Auto",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF0288D1),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 4),
+                    const Text(
+                      "Search background score by keyword (e.g. calm, happy, lullaby, party)...",
+                      style: TextStyle(fontSize: 12, color: Colors.black54),
+                    ),
+                    const SizedBox(height: 10),
 
-                    // Matching UI Track Selection Dropdown with Instagram-style Audio Preview
+                    // Modern Keyword Search Bar
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: const Color(0xFFB3E5FC),
+                          width: 1.2,
+                        ),
+                      ),
+                      child: TextField(
+                        controller: searchController,
+                        style: const TextStyle(fontSize: 13.5),
+                        textInputAction: TextInputAction.search,
+                        decoration: InputDecoration(
+                          hintText: "Search keywords (e.g. happy, calm, lullaby, sleep)...",
+                          hintStyle: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade400,
+                          ),
+                          prefixIcon: const Icon(
+                            Icons.search_rounded,
+                            size: 20,
+                            color: Color(0xFF0288D1),
+                          ),
+                          suffixIcon: searchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(
+                                    Icons.close_rounded,
+                                    size: 18,
+                                    color: Colors.black45,
+                                  ),
+                                  onPressed: () {
+                                    searchController.clear();
+                                    searchDebounceTimer?.cancel();
+                                    controller.fetchMusicCatalog();
+                                    setStateModal(() {});
+                                  },
+                                )
+                              : null,
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          border: InputBorder.none,
+                        ),
+                        onChanged: (query) {
+                          setStateModal(() {
+                            isDropdownOpen = true;
+                          });
+                          searchDebounceTimer?.cancel();
+                          searchDebounceTimer = Timer(
+                            const Duration(milliseconds: 300),
+                            () {
+                              controller.fetchMusicCatalog(
+                                search: query.trim().isNotEmpty
+                                    ? query.trim()
+                                    : null,
+                              );
+                            },
+                          );
+                        },
+                        onSubmitted: (query) {
+                          searchDebounceTimer?.cancel();
+                          controller.fetchMusicCatalog(
+                            search: query.trim().isNotEmpty
+                                ? query.trim()
+                                : null,
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Matching UI Track Selection Dropdown with Instagram-style Audio Preview & Keyword tags
                     Obx(() {
-                      final filteredTracks = controller.musicTracks
-                          .where((t) =>
-                              t.category.trim().isEmpty ||
-                              t.category.toLowerCase() ==
-                                  selectedCategory.toLowerCase())
-                          .toList();
-                      final tracks = filteredTracks.isNotEmpty
-                          ? filteredTracks
-                          : controller.musicTracks.toList();
+                      final rawQuery = searchController.text.trim().toLowerCase();
+                      final queryTokens = rawQuery.isNotEmpty
+                          ? rawQuery.split(RegExp(r'\s+')).where((t) => t.isNotEmpty).toList()
+                          : <String>[];
+
+                      // Combine server tracks with instant client-side token matching
+                      final filteredTracks = controller.musicTracks.where((t) {
+                        if (queryTokens.isEmpty) return true;
+                        final titleLower = t.title.toLowerCase();
+                        final artistLower = t.artist.toLowerCase();
+                        final categoryLower = t.category.toLowerCase();
+                        final kwLower = (t.keywords ?? '').toLowerCase();
+
+                        return queryTokens.every((tok) =>
+                            titleLower.contains(tok) ||
+                            artistLower.contains(tok) ||
+                            kwLower.contains(tok) ||
+                            categoryLower.contains(tok));
+                      }).toList();
+
+                      final tracks = filteredTracks;
 
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Row(
-                                children: [
-                                  Icon(
-                                    Icons.library_music_rounded,
-                                    size: 16,
-                                    color: Color(0xFF0288D1),
-                                  ),
-                                  SizedBox(width: 6),
-                                  Text(
-                                    "Select Track (Optional)",
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                      color: Colors.black87,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              if (selectedSong != null)
-                                InkWell(
-                                  onTap: () {
-                                    controller.stopTrackPreview();
-                                    setStateModal(() {
-                                      selectedSong = null;
-                                    });
-                                  },
-                                  child: const Padding(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: 4,
-                                      vertical: 2,
-                                    ),
-                                    child: Text(
-                                      "Reset to Auto",
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Color(0xFF0288D1),
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-
                           if (controller.isLoadingMusic.value)
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -1463,7 +1508,7 @@ class Memoriesscreen extends StatelessWidget {
                                   ),
                                   SizedBox(width: 10),
                                   Text(
-                                    "Loading sound tracks...",
+                                    "Searching music tracks...",
                                     style: TextStyle(
                                       fontSize: 13,
                                       color: Colors.black54,
@@ -1472,310 +1517,404 @@ class Memoriesscreen extends StatelessWidget {
                                 ],
                               ),
                             )
-                          else if (tracks.isEmpty)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.grey.shade50,
-                                borderRadius: BorderRadius.circular(14),
-                                border:
-                                    Border.all(color: Colors.grey.shade200),
-                              ),
-                              child: const Row(
-                                children: [
-                                  Icon(
-                                    Icons.auto_awesome_rounded,
-                                    color: Colors.amber,
-                                    size: 18,
-                                  ),
-                                  SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      "✨ Auto (Studio curated default for this mood)",
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: Colors.black87,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                          else
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Dropdown Header Button
-                                InkWell(
-                                  onTap: () {
-                                    setStateModal(() {
-                                      isDropdownOpen = !isDropdownOpen;
-                                    });
-                                  },
+                          else ...[
+                            // Dropdown Header Button
+                            InkWell(
+                              onTap: () {
+                                setStateModal(() {
+                                  isDropdownOpen = !isDropdownOpen;
+                                });
+                              },
+                              borderRadius: isDropdownOpen
+                                  ? const BorderRadius.vertical(
+                                      top: Radius.circular(14),
+                                    )
+                                  : BorderRadius.circular(14),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isDropdownOpen
+                                      ? const Color(0xFFF1F9FE)
+                                      : Colors.white,
                                   borderRadius: isDropdownOpen
                                       ? const BorderRadius.vertical(
                                           top: Radius.circular(14),
                                         )
                                       : BorderRadius.circular(14),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 10,
+                                  border: Border.all(
+                                    color: isDropdownOpen
+                                        ? const Color(0xFF0288D1)
+                                        : const Color(0xFFB3E5FC),
+                                    width: isDropdownOpen ? 1.5 : 1.2,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF0288D1)
+                                          .withValues(alpha: 0.05),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
                                     ),
-                                    decoration: BoxDecoration(
-                                      color: isDropdownOpen
-                                          ? const Color(0xFFF1F9FE)
-                                          : Colors.white,
-                                      borderRadius: isDropdownOpen
-                                          ? const BorderRadius.vertical(
-                                              top: Radius.circular(14),
-                                            )
-                                          : BorderRadius.circular(14),
-                                      border: Border.all(
-                                        color: isDropdownOpen
-                                            ? const Color(0xFF0288D1)
-                                            : const Color(0xFFB3E5FC),
-                                        width: isDropdownOpen ? 1.5 : 1.2,
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: const Color(0xFF0288D1)
-                                              .withValues(alpha: 0.05),
-                                          blurRadius: 6,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        // Left Icon Avatar
-                                        Container(
-                                          width: 38,
-                                          height: 38,
-                                          decoration: BoxDecoration(
-                                            gradient: LinearGradient(
-                                              colors: selectedSong != null
-                                                  ? [
-                                                      const Color(0xFF81D4FA),
-                                                      const Color(0xFF0288D1),
-                                                    ]
-                                                  : [
-                                                      const Color(0xFFFFE082),
-                                                      const Color(0xFFFFB300),
-                                                    ],
-                                              begin: Alignment.topLeft,
-                                              end: Alignment.bottomRight,
-                                            ),
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: Icon(
-                                            selectedSong != null
-                                                ? Icons.music_note_rounded
-                                                : Icons.auto_awesome_rounded,
-                                            color: Colors.white,
-                                            size: 20,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-
-                                        // Track title & info
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                selectedSong != null
-                                                    ? selectedSong!.title
-                                                    : "✨ Auto (Studio curated default)",
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 13.5,
-                                                  color: Colors.black87,
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                              const SizedBox(height: 2),
-                                              Text(
-                                                selectedSong != null
-                                                    ? "${selectedSong!.artist}${selectedSong!.durationSeconds != null ? " • ${selectedSong!.durationSeconds!.round()}s" : ""}"
-                                                    : "Picks the best background sound for you",
-                                                style: const TextStyle(
-                                                  fontSize: 11.5,
-                                                  color: Colors.black54,
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-
-                                        // Inline Play / Pause Preview Button if a track is selected
-                                        if (selectedSong != null) ...[
-                                          Obx(() {
-                                            final isPlaying =
-                                                controller.playingTrackId.value ==
-                                                        selectedSong!.id &&
-                                                    controller.isPreviewPlaying.value;
-                                            final isBuffering =
-                                                controller.playingTrackId.value ==
-                                                        selectedSong!.id &&
-                                                    controller.isPreviewBuffering.value;
-
-                                            return Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                if (isPlaying) ...[
-                                                  const InstagramEqualizerBars(
-                                                    color: Color(0xFF0288D1),
-                                                    height: 14,
-                                                  ),
-                                                  const SizedBox(width: 8),
+                                  ],
+                                ),
+                                child: Row(
+                                  children: [
+                                    // Left Icon Avatar
+                                    Container(
+                                      width: 38,
+                                      height: 38,
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: selectedSong != null
+                                              ? [
+                                                  const Color(0xFF81D4FA),
+                                                  const Color(0xFF0288D1),
+                                                ]
+                                              : [
+                                                  const Color(0xFFFFE082),
+                                                  const Color(0xFFFFB300),
                                                 ],
-                                                InkWell(
-                                                  onTap: () =>
-                                                      controller.toggleTrackPreview(
-                                                    selectedSong!,
-                                                  ),
-                                                  borderRadius:
-                                                      BorderRadius.circular(18),
-                                                  child: Container(
-                                                    width: 36,
-                                                    height: 36,
-                                                    decoration: BoxDecoration(
-                                                      color: isPlaying
-                                                          ? const Color(0xFF0288D1)
-                                                          : const Color(0xFFE1F5FE),
-                                                      shape: BoxShape.circle,
-                                                      boxShadow: isPlaying
-                                                          ? [
-                                                              BoxShadow(
-                                                                color: const Color(0xFF0288D1)
-                                                                    .withValues(
-                                                                        alpha: 0.35),
-                                                                blurRadius: 6,
-                                                                offset: const Offset(
-                                                                    0, 2),
-                                                              )
-                                                            ]
-                                                          : [],
-                                                    ),
-                                                    child: isBuffering
-                                                        ? const Center(
-                                                            child: SizedBox(
-                                                              width: 14,
-                                                              height: 14,
-                                                              child:
-                                                                  CircularProgressIndicator(
-                                                                strokeWidth: 2,
-                                                                valueColor:
-                                                                    AlwaysStoppedAnimation<Color>(
-                                                                  Color(0xFF0288D1),
-                                                                ),
-                                                              ),
-                                                            ),
-                                                          )
-                                                        : Icon(
-                                                            isPlaying
-                                                                ? Icons.pause_rounded
-                                                                : Icons.play_arrow_rounded,
-                                                            color: isPlaying
-                                                                ? Colors.white
-                                                                : const Color(
-                                                                    0xFF0288D1),
-                                                            size: 20,
-                                                          ),
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 6),
-                                              ],
-                                            );
-                                          }),
-                                        ],
-
-                                        // Dropdown Chevron Indicator
-                                        AnimatedRotation(
-                                          turns: isDropdownOpen ? 0.5 : 0.0,
-                                          duration:
-                                              const Duration(milliseconds: 200),
-                                          child: const Icon(
-                                            Icons.keyboard_arrow_down_rounded,
-                                            color: Color(0xFF0288D1),
-                                            size: 24,
-                                          ),
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
                                         ),
-                                      ],
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(
+                                        selectedSong != null
+                                            ? Icons.music_note_rounded
+                                            : Icons.auto_awesome_rounded,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+
+                                    // Track title & info
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            selectedSong != null
+                                                ? selectedSong!.title
+                                                : "✨ Auto (Studio curated default)",
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13.5,
+                                              color: Colors.black87,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            selectedSong != null
+                                                ? "${selectedSong!.artist}${selectedSong!.durationSeconds != null ? " • ${selectedSong!.durationSeconds!.round()}s" : ""}"
+                                                : "Picks the best background sound for you",
+                                            style: const TextStyle(
+                                              fontSize: 11.5,
+                                              color: Colors.black54,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+
+                                    // Inline Play / Pause Preview Button if a track is selected
+                                    if (selectedSong != null) ...[
+                                      Obx(() {
+                                        final isPlaying =
+                                            controller.playingTrackId.value ==
+                                                    selectedSong!.id &&
+                                                controller.isPreviewPlaying.value;
+                                        final isBuffering =
+                                            controller.playingTrackId.value ==
+                                                    selectedSong!.id &&
+                                                controller.isPreviewBuffering.value;
+
+                                        return Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            if (isPlaying) ...[
+                                              const InstagramEqualizerBars(
+                                                color: Color(0xFF0288D1),
+                                                height: 14,
+                                              ),
+                                              const SizedBox(width: 8),
+                                            ],
+                                            InkWell(
+                                              onTap: () =>
+                                                  controller.toggleTrackPreview(
+                                                selectedSong!,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(18),
+                                              child: Container(
+                                                width: 36,
+                                                height: 36,
+                                                decoration: BoxDecoration(
+                                                  color: isPlaying
+                                                      ? const Color(0xFF0288D1)
+                                                      : const Color(0xFFE1F5FE),
+                                                  shape: BoxShape.circle,
+                                                  boxShadow: isPlaying
+                                                      ? [
+                                                          BoxShadow(
+                                                            color: const Color(
+                                                                    0xFF0288D1)
+                                                                .withValues(
+                                                                    alpha:
+                                                                        0.35),
+                                                            blurRadius: 6,
+                                                            offset: const Offset(
+                                                                0, 2),
+                                                          )
+                                                        ]
+                                                      : [],
+                                                ),
+                                                child: isBuffering
+                                                    ? const Center(
+                                                        child: SizedBox(
+                                                          width: 14,
+                                                          height: 14,
+                                                          child:
+                                                              CircularProgressIndicator(
+                                                            strokeWidth: 2,
+                                                            valueColor:
+                                                                AlwaysStoppedAnimation<
+                                                                    Color>(
+                                                              Color(0xFF0288D1),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      )
+                                                    : Icon(
+                                                        isPlaying
+                                                            ? Icons.pause_rounded
+                                                            : Icons.play_arrow_rounded,
+                                                        color: isPlaying
+                                                            ? Colors.white
+                                                            : const Color(
+                                                                0xFF0288D1),
+                                                        size: 20,
+                                                      ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                          ],
+                                        );
+                                      }),
+                                    ],
+
+                                    // Dropdown Chevron Indicator
+                                    AnimatedRotation(
+                                      turns: isDropdownOpen ? 0.5 : 0.0,
+                                      duration:
+                                          const Duration(milliseconds: 200),
+                                      child: const Icon(
+                                        Icons.keyboard_arrow_down_rounded,
+                                        color: Color(0xFF0288D1),
+                                        size: 24,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+
+                            // Dropdown Menu (Opened state)
+                            if (isDropdownOpen)
+                              Container(
+                                constraints:
+                                    const BoxConstraints(maxHeight: 260),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius:
+                                      const BorderRadius.vertical(
+                                    bottom: Radius.circular(14),
+                                  ),
+                                  border: const Border(
+                                    left: BorderSide(
+                                      color: Color(0xFF0288D1),
+                                      width: 1.5,
+                                    ),
+                                    right: BorderSide(
+                                      color: Color(0xFF0288D1),
+                                      width: 1.5,
+                                    ),
+                                    bottom: BorderSide(
+                                      color: Color(0xFF0288D1),
+                                      width: 1.5,
                                     ),
                                   ),
-                                ),
-
-                                // Dropdown Menu (Opened state)
-                                if (isDropdownOpen)
-                                  Container(
-                                    constraints:
-                                        const BoxConstraints(maxHeight: 250),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius:
-                                          const BorderRadius.vertical(
-                                        bottom: Radius.circular(14),
-                                      ),
-                                      border: const Border(
-                                        left: BorderSide(
-                                          color: Color(0xFF0288D1),
-                                          width: 1.5,
-                                        ),
-                                        right: BorderSide(
-                                          color: Color(0xFF0288D1),
-                                          width: 1.5,
-                                        ),
-                                        bottom: BorderSide(
-                                          color: Color(0xFF0288D1),
-                                          width: 1.5,
-                                        ),
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: const Color(0xFF0288D1)
-                                              .withValues(alpha: 0.1),
-                                          blurRadius: 12,
-                                          offset: const Offset(0, 6),
-                                        ),
-                                      ],
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF0288D1)
+                                          .withValues(alpha: 0.1),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 6),
                                     ),
-                                    child: ClipRRect(
-                                      borderRadius:
-                                          const BorderRadius.vertical(
-                                        bottom: Radius.circular(12),
-                                      ),
-                                      child: ListView.separated(
-                                        shrinkWrap: true,
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 4,
-                                        ),
-                                        itemCount: tracks.length + 1,
-                                        separatorBuilder: (_, __) => Divider(
-                                          height: 1,
-                                          thickness: 0.8,
-                                          color: Colors.grey.shade100,
-                                          indent: 52,
-                                        ),
-                                        itemBuilder: (context, idx) {
-                                          // Option 0: Auto
-                                          if (idx == 0) {
+                                  ],
+                                ),
+                                child: ClipRRect(
+                                  borderRadius:
+                                      const BorderRadius.vertical(
+                                    bottom: Radius.circular(12),
+                                  ),
+                                  child: tracks.isEmpty
+                                      ? Padding(
+                                          padding: const EdgeInsets.all(16.0),
+                                          child: Center(
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  Icons.music_off_rounded,
+                                                  size: 32,
+                                                  color: Colors.grey.shade400,
+                                                ),
+                                                const SizedBox(height: 6),
+                                                Text(
+                                                  rawQuery.isNotEmpty
+                                                      ? "No music found matching '$rawQuery'"
+                                                      : "No music tracks available",
+                                                  textAlign: TextAlign.center,
+                                                  style: TextStyle(
+                                                    fontSize: 12.5,
+                                                    color: Colors.grey.shade600,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  "Try keywords like: calm, happy, lullaby, sleep",
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color: Colors.grey.shade400,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        )
+                                      : ListView.separated(
+                                          shrinkWrap: true,
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 4,
+                                          ),
+                                          itemCount: tracks.length + 1,
+                                          separatorBuilder: (_, __) => Divider(
+                                            height: 1,
+                                            thickness: 0.8,
+                                            color: Colors.grey.shade100,
+                                            indent: 52,
+                                          ),
+                                          itemBuilder: (context, idx) {
+                                            // Option 0: Auto
+                                            if (idx == 0) {
+                                              final isSelected =
+                                                  selectedSong == null;
+                                              return InkWell(
+                                                onTap: () {
+                                                  controller.stopTrackPreview();
+                                                  setStateModal(() {
+                                                    selectedSong = null;
+                                                    isDropdownOpen = false;
+                                                  });
+                                                },
+                                                child: Padding(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                    horizontal: 12,
+                                                    vertical: 10,
+                                                  ),
+                                                  child: Row(
+                                                    children: [
+                                                      Container(
+                                                        width: 36,
+                                                        height: 36,
+                                                        decoration: BoxDecoration(
+                                                          color: isSelected
+                                                              ? const Color(
+                                                                  0xFFFFF8E1)
+                                                              : Colors
+                                                                  .grey.shade100,
+                                                          shape: BoxShape.circle,
+                                                        ),
+                                                        child: Icon(
+                                                          Icons
+                                                              .auto_awesome_rounded,
+                                                          color: isSelected
+                                                              ? Colors
+                                                                  .amber.shade800
+                                                              : Colors.black45,
+                                                          size: 18,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 12),
+                                                      const Expanded(
+                                                        child: Column(
+                                                          crossAxisAlignment:
+                                                              CrossAxisAlignment
+                                                                  .start,
+                                                          children: [
+                                                            Text(
+                                                              "✨ Auto (Studio curated default)",
+                                                              style: TextStyle(
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600,
+                                                                fontSize: 13,
+                                                                color: Colors
+                                                                    .black87,
+                                                              ),
+                                                            ),
+                                                            SizedBox(height: 2),
+                                                            Text(
+                                                              "Recommended background score",
+                                                              style: TextStyle(
+                                                                fontSize: 11,
+                                                                color: Colors
+                                                                    .black54,
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                      if (isSelected)
+                                                        const Icon(
+                                                          Icons
+                                                              .check_circle_rounded,
+                                                          color:
+                                                              Color(0xFF0288D1),
+                                                          size: 20,
+                                                        )
+                                                      else
+                                                        Icon(
+                                                          Icons.circle_outlined,
+                                                          color: Colors
+                                                              .grey.shade300,
+                                                          size: 20,
+                                                        ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              );
+                                            }
+
+                                            final track = tracks[idx - 1];
                                             final isSelected =
-                                                selectedSong == null;
+                                                selectedSong?.id == track.id;
+
                                             return InkWell(
                                               onTap: () {
-                                                controller.stopTrackPreview();
                                                 setStateModal(() {
-                                                  selectedSong = null;
+                                                  selectedSong = track;
                                                   isDropdownOpen = false;
                                                 });
                                               },
@@ -1783,292 +1922,230 @@ class Memoriesscreen extends StatelessWidget {
                                                 padding:
                                                     const EdgeInsets.symmetric(
                                                   horizontal: 12,
-                                                  vertical: 10,
+                                                  vertical: 8,
                                                 ),
                                                 child: Row(
                                                   children: [
-                                                    Container(
-                                                      width: 36,
-                                                      height: 36,
-                                                      decoration: BoxDecoration(
-                                                        color: isSelected
-                                                            ? const Color(
-                                                                0xFFFFF8E1)
-                                                            : Colors
-                                                                .grey.shade100,
-                                                        shape: BoxShape.circle,
-                                                      ),
-                                                      child: Icon(
-                                                        Icons
-                                                            .auto_awesome_rounded,
-                                                        color: isSelected
-                                                            ? Colors
-                                                                .amber.shade800
-                                                            : Colors.black45,
-                                                        size: 18,
-                                                      ),
-                                                    ),
+                                                    // Instagram-style Play / Pause Button
+                                                    Obx(() {
+                                                      final isPlaying = controller
+                                                                  .playingTrackId
+                                                                  .value ==
+                                                              track.id &&
+                                                          controller
+                                                              .isPreviewPlaying
+                                                              .value;
+                                                      final isBuffering =
+                                                          controller
+                                                                  .playingTrackId
+                                                                  .value ==
+                                                              track.id &&
+                                                          controller
+                                                              .isPreviewBuffering
+                                                              .value;
+
+                                                      return InkWell(
+                                                        onTap: () => controller
+                                                            .toggleTrackPreview(
+                                                                track),
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                                18),
+                                                        child: Container(
+                                                          width: 36,
+                                                          height: 36,
+                                                          decoration:
+                                                              BoxDecoration(
+                                                            color: isPlaying
+                                                                ? const Color(
+                                                                    0xFF0288D1)
+                                                                : const Color(
+                                                                    0xFFE1F5FE),
+                                                            shape:
+                                                                BoxShape.circle,
+                                                            boxShadow: isPlaying
+                                                                ? [
+                                                                    BoxShadow(
+                                                                      color: const Color(
+                                                                              0xFF0288D1)
+                                                                          .withValues(
+                                                                              alpha:
+                                                                                  0.35),
+                                                                      blurRadius:
+                                                                          6,
+                                                                      offset:
+                                                                          const Offset(
+                                                                              0,
+                                                                              2),
+                                                                    )
+                                                                  ]
+                                                                : [],
+                                                          ),
+                                                          child: isBuffering
+                                                              ? const Center(
+                                                                  child: SizedBox(
+                                                                    width: 14,
+                                                                    height: 14,
+                                                                    child:
+                                                                        CircularProgressIndicator(
+                                                                      strokeWidth:
+                                                                          2,
+                                                                      valueColor:
+                                                                          AlwaysStoppedAnimation<
+                                                                              Color>(
+                                                                        Color(
+                                                                            0xFF0288D1),
+                                                                      ),
+                                                                    ),
+                                                                  ),
+                                                                )
+                                                              : Icon(
+                                                                  isPlaying
+                                                                      ? Icons
+                                                                          .pause_rounded
+                                                                      : Icons
+                                                                          .play_arrow_rounded,
+                                                                  color: isPlaying
+                                                                      ? Colors
+                                                                          .white
+                                                                      : const Color(
+                                                                          0xFF0288D1),
+                                                                  size: 20,
+                                                              ),
+                                                        ),
+                                                      );
+                                                    }),
                                                     const SizedBox(width: 12),
-                                                    const Expanded(
+
+                                                    // Track details with Keywords Tags
+                                                    Expanded(
                                                       child: Column(
                                                         crossAxisAlignment:
                                                             CrossAxisAlignment
                                                                 .start,
                                                         children: [
                                                           Text(
-                                                            "✨ Auto (Studio curated default)",
+                                                            track.title,
                                                             style: TextStyle(
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w600,
+                                                              fontWeight: isSelected
+                                                                  ? FontWeight.bold
+                                                                  : FontWeight.w600,
                                                               fontSize: 13,
-                                                              color: Colors
-                                                                  .black87,
+                                                              color: isSelected
+                                                                  ? const Color(
+                                                                      0xFF0288D1)
+                                                                  : Colors.black87,
                                                             ),
+                                                            maxLines: 1,
+                                                            overflow:
+                                                                TextOverflow.ellipsis,
                                                           ),
-                                                          SizedBox(height: 2),
-                                                          Text(
-                                                            "Recommended background score",
-                                                            style: TextStyle(
-                                                              fontSize: 11,
-                                                              color: Colors
-                                                                  .black54,
+                                                          const SizedBox(
+                                                              height: 2),
+                                                          Row(
+                                                            children: [
+                                                              Expanded(
+                                                                child: Text(
+                                                                  "${track.artist}${track.durationSeconds != null ? " • ${track.durationSeconds!.round()}s" : ""}",
+                                                                  style:
+                                                                      const TextStyle(
+                                                                    fontSize: 11,
+                                                                    color: Colors
+                                                                        .black54,
+                                                                  ),
+                                                                  maxLines: 1,
+                                                                  overflow:
+                                                                      TextOverflow
+                                                                          .ellipsis,
+                                                                ),
+                                                              ),
+                                                              Obx(() {
+                                                                final isPlaying =
+                                                                    controller
+                                                                            .playingTrackId
+                                                                            .value ==
+                                                                        track.id &&
+                                                                    controller
+                                                                        .isPreviewPlaying
+                                                                        .value;
+                                                                if (isPlaying) {
+                                                                  return const Padding(
+                                                                    padding:
+                                                                        EdgeInsets.only(
+                                                                            left:
+                                                                                6.0),
+                                                                    child:
+                                                                        InstagramEqualizerBars(
+                                                                      color: Color(
+                                                                          0xFF0288D1),
+                                                                      height: 12,
+                                                                    ),
+                                                                  );
+                                                                }
+                                                                return const SizedBox
+                                                                    .shrink();
+                                                              }),
+                                                            ],
+                                                          ),
+
+                                                          // Keyword chips preview
+                                                          if (track.keywordList.isNotEmpty) ...[
+                                                            const SizedBox(height: 4),
+                                                            Wrap(
+                                                              spacing: 4,
+                                                              runSpacing: 2,
+                                                              children: track.keywordList
+                                                                  .take(3)
+                                                                  .map((kw) => Container(
+                                                                        padding: const EdgeInsets.symmetric(
+                                                                          horizontal: 6,
+                                                                          vertical: 1.5,
+                                                                        ),
+                                                                        decoration: BoxDecoration(
+                                                                          color: const Color(0xFFE1F5FE),
+                                                                          borderRadius: BorderRadius.circular(6),
+                                                                        ),
+                                                                        child: Text(
+                                                                          "#$kw",
+                                                                          style: const TextStyle(
+                                                                            fontSize: 9.5,
+                                                                            color: Color(0xFF0288D1),
+                                                                            fontWeight: FontWeight.w500,
+                                                                          ),
+                                                                        ),
+                                                                      ))
+                                                                  .toList(),
                                                             ),
-                                                          ),
+                                                          ],
                                                         ],
                                                       ),
                                                     ),
+                                                    const SizedBox(width: 8),
+
+                                                    // Radio checkmark
                                                     if (isSelected)
                                                       const Icon(
                                                         Icons
                                                             .check_circle_rounded,
-                                                        color:
-                                                            Color(0xFF0288D1),
+                                                        color: Color(0xFF0288D1),
                                                         size: 20,
                                                       )
                                                     else
                                                       Icon(
                                                         Icons.circle_outlined,
-                                                        color: Colors
-                                                            .grey.shade300,
+                                                        color:
+                                                            Colors.grey.shade300,
                                                         size: 20,
                                                       ),
                                                   ],
                                                 ),
                                               ),
                                             );
-                                          }
-
-                                          final track = tracks[idx - 1];
-                                          final isSelected =
-                                              selectedSong?.id == track.id;
-
-                                          return InkWell(
-                                            onTap: () {
-                                              setStateModal(() {
-                                                selectedSong = track;
-                                                isDropdownOpen = false;
-                                              });
-                                            },
-                                            child: Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                horizontal: 12,
-                                                vertical: 8,
-                                              ),
-                                              child: Row(
-                                                children: [
-                                                  // Instagram-style Play / Pause Button
-                                                  Obx(() {
-                                                    final isPlaying = controller
-                                                                .playingTrackId
-                                                                .value ==
-                                                            track.id &&
-                                                        controller
-                                                            .isPreviewPlaying
-                                                            .value;
-                                                    final isBuffering =
-                                                        controller
-                                                                .playingTrackId
-                                                                .value ==
-                                                            track.id &&
-                                                        controller
-                                                            .isPreviewBuffering
-                                                            .value;
-
-                                                    return InkWell(
-                                                      onTap: () => controller
-                                                          .toggleTrackPreview(
-                                                              track),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              18),
-                                                      child: Container(
-                                                        width: 36,
-                                                        height: 36,
-                                                        decoration:
-                                                            BoxDecoration(
-                                                          color: isPlaying
-                                                              ? const Color(
-                                                                  0xFF0288D1)
-                                                              : const Color(
-                                                                  0xFFE1F5FE),
-                                                          shape:
-                                                              BoxShape.circle,
-                                                          boxShadow: isPlaying
-                                                              ? [
-                                                                  BoxShadow(
-                                                                    color: const Color(
-                                                                            0xFF0288D1)
-                                                                        .withValues(
-                                                                            alpha:
-                                                                                0.35),
-                                                                    blurRadius:
-                                                                        6,
-                                                                    offset:
-                                                                        const Offset(
-                                                                            0,
-                                                                            2),
-                                                                  )
-                                                                ]
-                                                              : [],
-                                                        ),
-                                                        child: isBuffering
-                                                            ? const Center(
-                                                                child: SizedBox(
-                                                                  width: 14,
-                                                                  height: 14,
-                                                                  child:
-                                                                      CircularProgressIndicator(
-                                                                    strokeWidth:
-                                                                        2,
-                                                                    valueColor:
-                                                                        AlwaysStoppedAnimation<
-                                                                            Color>(
-                                                                      Color(
-                                                                          0xFF0288D1),
-                                                                    ),
-                                                                  ),
-                                                                ),
-                                                              )
-                                                            : Icon(
-                                                                isPlaying
-                                                                    ? Icons
-                                                                        .pause_rounded
-                                                                    : Icons
-                                                                        .play_arrow_rounded,
-                                                                color: isPlaying
-                                                                    ? Colors
-                                                                        .white
-                                                                    : const Color(
-                                                                        0xFF0288D1),
-                                                                size: 20,
-                                                            ),
-                                                      ),
-                                                    );
-                                                  }),
-                                                  const SizedBox(width: 12),
-
-                                                  // Track details
-                                                  Expanded(
-                                                    child: Column(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      children: [
-                                                        Text(
-                                                          track.title,
-                                                          style: TextStyle(
-                                                            fontWeight: isSelected
-                                                                ? FontWeight.bold
-                                                                : FontWeight.w600,
-                                                            fontSize: 13,
-                                                            color: isSelected
-                                                                ? const Color(
-                                                                    0xFF0288D1)
-                                                                : Colors.black87,
-                                                          ),
-                                                          maxLines: 1,
-                                                          overflow:
-                                                              TextOverflow.ellipsis,
-                                                        ),
-                                                        const SizedBox(
-                                                            height: 2),
-                                                        Row(
-                                                          children: [
-                                                            Expanded(
-                                                              child: Text(
-                                                                "${track.artist}${track.durationSeconds != null ? " • ${track.durationSeconds!.round()}s" : ""}",
-                                                                style:
-                                                                    const TextStyle(
-                                                                  fontSize: 11,
-                                                                  color: Colors
-                                                                      .black54,
-                                                                ),
-                                                                maxLines: 1,
-                                                                overflow:
-                                                                    TextOverflow
-                                                                        .ellipsis,
-                                                              ),
-                                                            ),
-                                                            Obx(() {
-                                                              final isPlaying =
-                                                                  controller
-                                                                          .playingTrackId
-                                                                          .value ==
-                                                                      track.id &&
-                                                                  controller
-                                                                      .isPreviewPlaying
-                                                                      .value;
-                                                              if (isPlaying) {
-                                                                return const Padding(
-                                                                  padding:
-                                                                      EdgeInsets.only(
-                                                                          left:
-                                                                              6.0),
-                                                                  child:
-                                                                      InstagramEqualizerBars(
-                                                                    color: Color(
-                                                                        0xFF0288D1),
-                                                                    height: 12,
-                                                                  ),
-                                                                );
-                                                              }
-                                                              return const SizedBox
-                                                                  .shrink();
-                                                            }),
-                                                          ],
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                  const SizedBox(width: 8),
-
-                                                  // Radio checkmark
-                                                  if (isSelected)
-                                                    const Icon(
-                                                      Icons
-                                                          .check_circle_rounded,
-                                                      color: Color(0xFF0288D1),
-                                                      size: 20,
-                                                    )
-                                                  else
-                                                    Icon(
-                                                      Icons.circle_outlined,
-                                                      color:
-                                                          Colors.grey.shade300,
-                                                      size: 20,
-                                                    ),
-                                                ],
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
+                                          },
+                                        ),
+                                ),
+                              ),
+                          ],
                           const SizedBox(height: 16),
                         ],
                       );
@@ -2278,7 +2355,7 @@ class Memoriesscreen extends StatelessWidget {
                             endDate: endDate != null
                                 ? DateFormat('yyyy-MM-dd').format(endDate!)
                                 : null,
-                            backgroundMusic: selectedCategory,
+                            backgroundMusic: selectedSong?.category ?? "calm",
                             songId: selectedSong?.id,
                             theme: selectedTheme,
                             frameStyle: selectedFrameStyle,
@@ -2298,8 +2375,10 @@ class Memoriesscreen extends StatelessWidget {
       },
     );
 
-    // Ensure audio stops when modal is dismissed
+    // Ensure audio stops and search controller disposed when modal is dismissed
     controller.stopTrackPreview();
+    searchDebounceTimer?.cancel();
+    searchController.dispose();
   }
 
   // ============================================

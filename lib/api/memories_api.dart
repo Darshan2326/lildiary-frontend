@@ -258,11 +258,20 @@ class MemoriesApi {
 
   Future<List<MusicTrack>> getMusicCatalog({
     String? category,
+    String? search,
     required String token,
   }) async {
-    final url = (category != null && category.trim().isNotEmpty)
-        ? ApiConstants.musicByCategory(category.trim().toLowerCase())
-        : ApiConstants.musicCatalog;
+    String url = ApiConstants.musicCatalog;
+    final queryParams = <String>[];
+    if (search != null && search.trim().isNotEmpty) {
+      queryParams.add('search=${Uri.encodeComponent(search.trim())}');
+    }
+    if (category != null && category.trim().isNotEmpty) {
+      queryParams.add('category=${Uri.encodeComponent(category.trim().toLowerCase())}');
+    }
+    if (queryParams.isNotEmpty) {
+      url = '$url?${queryParams.join('&')}';
+    }
 
     final response = await _apiClient.get(
       url,

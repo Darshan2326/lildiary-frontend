@@ -252,6 +252,7 @@ class MusicTrack {
   final String title;
   final String artist;
   final String category;
+  final String? keywords;
   final double? durationSeconds;
   final String? fileUrl;
   final bool isActive;
@@ -261,10 +262,20 @@ class MusicTrack {
     required this.title,
     required this.artist,
     required this.category,
+    this.keywords,
     this.durationSeconds,
     this.fileUrl,
     this.isActive = true,
   });
+
+  List<String> get keywordList {
+    if (keywords == null || keywords!.trim().isEmpty) return [];
+    return keywords!
+        .split(',')
+        .map((k) => k.trim())
+        .where((k) => k.isNotEmpty)
+        .toList();
+  }
 
   factory MusicTrack.fromJson(Map<String, dynamic> json) {
     return MusicTrack(
@@ -272,6 +283,7 @@ class MusicTrack {
       title: json['title']?.toString() ?? '',
       artist: json['artist']?.toString() ?? '',
       category: json['category']?.toString() ?? '',
+      keywords: json['keywords']?.toString(),
       durationSeconds: json['duration_seconds'] is num
           ? (json['duration_seconds'] as num).toDouble()
           : null,
@@ -286,6 +298,7 @@ class MusicTrack {
       'title': title,
       'artist': artist,
       'category': category,
+      'keywords': keywords,
       'duration_seconds': durationSeconds,
       'file_url': fileUrl,
       'is_active': isActive,
