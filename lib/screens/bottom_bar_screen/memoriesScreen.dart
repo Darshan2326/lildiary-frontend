@@ -8,6 +8,8 @@ import 'package:lildairy/models/user.dart';
 import 'package:lildairy/screens/FullScreenMediaViewer.dart';
 import 'package:lildairy/widget/smart_media_widget.dart';
 import 'package:lottie/lottie.dart';
+import 'package:lildairy/controllers/subscription_controller.dart';
+import 'package:lildairy/screens/subscription/subscription_dialog.dart';
 
 class Memoriesscreen extends StatelessWidget {
   const Memoriesscreen({super.key});
@@ -15,6 +17,7 @@ class Memoriesscreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final MemoriesController controller = Get.put(MemoriesController());
+    final SubscriptionController subController = Get.put(SubscriptionController());
 
     return Scaffold(
       appBar: AppBar(
@@ -58,8 +61,21 @@ class Memoriesscreen extends StatelessWidget {
                   Icons.tune_rounded,
                   color: Color(0xFF0288D1),
                 ),
-                tooltip: "Custom Memory Recap",
-                onPressed: () => _showCustomRecapModal(context, controller),
+                tooltip: "Custom Memory Recap (PRO)",
+                onPressed: () {
+                  if (!subController.isSubscribed.value) {
+                    SubscriptionDialog.show(
+                      context,
+                      title: "Custom Memory Recap (PRO)",
+                      description:
+                          "Custom Recap is exclusive to Lil Diary Premium subscribers! Customize background music, date ranges, and styles. Normal users can use Quick Recap.",
+                      icon: Icons.tune_rounded,
+                      iconColor: const Color(0xFF0288D1),
+                    );
+                  } else {
+                    _showCustomRecapModal(context, controller);
+                  }
+                },
               );
             },
           ),
@@ -187,8 +203,13 @@ class Memoriesscreen extends StatelessWidget {
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            onPressed: () =>
-                                _showCustomRecapModal(context, controller),
+                            onPressed: () {
+                              if (subController.isSubscribed.value) {
+                                _showCustomRecapModal(context, controller);
+                              } else {
+                                controller.generateMemory();
+                              }
+                            },
                           ),
                         ],
                       ),
@@ -231,6 +252,10 @@ class Memoriesscreen extends StatelessWidget {
     BuildContext context,
     MemoriesController controller,
   ) {
+    final SubscriptionController subCtrl = Get.isRegistered<SubscriptionController>()
+        ? Get.find<SubscriptionController>()
+        : Get.put(SubscriptionController());
+
     return Container(
       margin: const EdgeInsets.fromLTRB(14, 12, 14, 8),
       padding: const EdgeInsets.all(16),
@@ -269,20 +294,55 @@ class Memoriesscreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 14),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      "Memory Recap Engine ✨",
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            "Memory Recap Engine ✨",
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                        Obx(() {
+                          final used = subCtrl.weeklyRecapsUsed.value;
+                          final isSub = subCtrl.isSubscribed.value;
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: isSub
+                                  ? const Color(0xFFFFF8E1)
+                                  : (used >= 4 ? const Color(0xFFFFEBEE) : const Color(0xFFE1F5FE)),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isSub
+                                    ? const Color(0xFFFFD54F)
+                                    : (used >= 4 ? const Color(0xFFEF9A9A) : const Color(0xFF81D4FA)),
+                                width: 1,
+                              ),
+                            ),
+                            child: Text(
+                              isSub ? "⭐ Unlimited" : "Week: $used/4",
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: isSub
+                                    ? const Color(0xFFF57F17)
+                                    : (used >= 4 ? const Color(0xFFC62828) : const Color(0xFF0288D1)),
+                              ),
+                            ),
+                          );
+                        }),
+                      ],
                     ),
-                    SizedBox(height: 2),
-                    Text(
+                    const SizedBox(height: 2),
+                    const Text(
                       "Google Photos style AI memory video generator",
                       style: TextStyle(
                         fontSize: 12,
@@ -314,7 +374,20 @@ class Memoriesscreen extends StatelessWidget {
                   ),
                   onPressed: controller.isGenerating.value
                       ? null
-                      : () => controller.generateMemory(),
+                      : () {
+                          if (subCtrl.weeklyRecapsUsed.value >= 4 && !subCtrl.isSubscribed.value) {
+                            SubscriptionDialog.show(
+                              context,
+                              title: "Weekly Limit Reached (4/4)",
+                              description:
+                                  "You can create up to 4 memory recaps per week. Next week you will receive 4 more recaps, or upgrade to Lil Diary Premium for unlimited recaps!",
+                              icon: Icons.repeat_rounded,
+                              iconColor: const Color(0xFFE65100),
+                            );
+                          } else {
+                            controller.generateMemory();
+                          }
+                        },
                 ),
               ),
               const SizedBox(width: 10),
@@ -330,13 +403,47 @@ class Memoriesscreen extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 10),
                   ),
                   icon: const Icon(Icons.tune_rounded, size: 18),
-                  label: const Text(
-                    "Custom Recap",
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        "Custom Recap",
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(width: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFD54F),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          "PRO",
+                          style: TextStyle(
+                            color: Colors.black87,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   onPressed: controller.isGenerating.value
                       ? null
-                      : () => _showCustomRecapModal(context, controller),
+                      : () {
+                          if (!subCtrl.isSubscribed.value) {
+                            SubscriptionDialog.show(
+                              context,
+                              title: "Custom Memory Recap (PRO)",
+                              description:
+                                  "Custom Recap is exclusive to Lil Diary Premium subscribers! You can select background songs, child names, moods, and custom date ranges. Normal users can use Quick Recap.",
+                              icon: Icons.tune_rounded,
+                              iconColor: const Color(0xFF0288D1),
+                            );
+                          } else {
+                            _showCustomRecapModal(context, controller);
+                          }
+                        },
                 ),
               ),
             ],

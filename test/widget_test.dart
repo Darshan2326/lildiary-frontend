@@ -1,30 +1,45 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:lildairy/main.dart';
+import 'package:get/get.dart';
+import 'package:lildairy/screens/subscription/subscription_dialog.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget( const MyApp());
+  testWidgets('SubscriptionDialog smoke test', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      GetMaterialApp(
+        home: Builder(
+          builder: (context) {
+            return Scaffold(
+              body: Center(
+                child: ElevatedButton(
+                  onPressed: () {
+                    SubscriptionDialog.show(
+                      context,
+                      title: "Upgrade to Premium",
+                      description: "Unlock all premium features today!",
+                    );
+                  },
+                  child: const Text('Show Dialog'),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    expect(find.text('Show Dialog'), findsOneWidget);
+    await tester.tap(find.text('Show Dialog'));
+    await tester.pumpAndSettle();
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    expect(find.text('Upgrade to Premium'), findsOneWidget);
+    expect(find.text('Unlock all premium features today!'), findsOneWidget);
+    expect(find.text('Upgrade'), findsOneWidget);
+    expect(find.text('Maybe Later'), findsOneWidget);
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    await tester.tap(find.text('Maybe Later'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Upgrade to Premium'), findsNothing);
   });
 }

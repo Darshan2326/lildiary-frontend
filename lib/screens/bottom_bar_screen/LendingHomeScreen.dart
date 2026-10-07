@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:lildairy/controllers/lendinghome_controller.dart';
+import 'package:lildairy/controllers/subscription_controller.dart';
 import 'package:lildairy/screens/NoteDetailsScreen.dart';
+import 'package:lildairy/screens/subscription/subscription_screen.dart';
 import 'package:lildairy/widget/smart_media_widget.dart';
 import 'package:lottie/lottie.dart';
 
@@ -21,6 +23,9 @@ class lendingHomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final SubscriptionController subController = Get.isRegistered<SubscriptionController>()
+        ? Get.find<SubscriptionController>()
+        : Get.put(SubscriptionController());
     return GestureDetector(
       onTap: () {
         FocusScope.of(context).unfocus();
@@ -50,14 +55,37 @@ class lendingHomeScreen extends StatelessWidget {
                       color: Colors.black38,
                     ),
                   ),
-                  Text(
-                    controller.userName.value.isEmpty
-                        ? 'Loading...'
-                        : controller.userName.value,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        controller.userName.value.isEmpty
+                            ? 'Loading...'
+                            : controller.userName.value,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (subController.isSubscribed.value) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF8E1),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: const Color(0xFFFFD54F)),
+                          ),
+                          child: const Text(
+                            "PRO ⭐",
+                            style: TextStyle(
+                              color: Color(0xFFF57F17),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),
@@ -95,6 +123,58 @@ class lendingHomeScreen extends StatelessWidget {
                   ),
                 ),
               ),
+
+              // Subscription Archive Banner for Free Users
+              Obx(() {
+                if (subController.isSubscribed.value) return const SizedBox.shrink();
+
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 4.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFE1F5FE), Color(0xFFF3E5F5)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF81D4FA).withValues(alpha: 0.7)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.stars_rounded, color: Color(0xFF0288D1), size: 20),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          "Free plan displays past 6 months. Unlock entire lifetime archive with Premium!",
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF01579B),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      GestureDetector(
+                        onTap: () => Get.to(() => const SubscriptionScreen()),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0288D1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            "Upgrade",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
 
               // Notes
               Expanded(

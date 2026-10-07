@@ -31,4 +31,12 @@ class ApiConstants {
       "$baseUrl/memories/music?category=$category";
   static String musicSearch(String query) =>
       "$baseUrl/memories/music?search=${Uri.encodeComponent(query)}";
+
+  // Subscription & Razorpay Endpoints
+  static const String subscriptionPlan = "$baseUrl/subscriptions/plan";
+  static const String subscriptionStatus = "$baseUrl/subscriptions/status";
+  static const String createSubscriptionOrder =
+      "$baseUrl/subscriptions/create-order";
+  static const String verifySubscriptionPayment =
+      "$baseUrl/subscriptions/verify-payment";
 }

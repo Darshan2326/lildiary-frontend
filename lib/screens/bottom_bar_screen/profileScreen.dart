@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lildairy/controllers/profile_controller.dart';
+import 'package:lildairy/controllers/subscription_controller.dart';
 import 'package:lildairy/screens/aboutus.dart';
 import 'package:lildairy/screens/bottom_bar_screen/memoriesScreen.dart';
+import 'package:lildairy/screens/subscription/subscription_screen.dart';
 
 class ProfilePage extends StatelessWidget {
   final String userId;
@@ -171,6 +173,132 @@ class ProfilePage extends StatelessWidget {
                 ),
 
                 const SizedBox(height: 30),
+
+                // ============================================
+                // SUBSCRIPTION & PREMIUM CARD
+                // ============================================
+                Obx(() {
+                  final subCtrl = Get.isRegistered<SubscriptionController>()
+                      ? Get.find<SubscriptionController>()
+                      : Get.put(SubscriptionController());
+                  final isSub = subCtrl.isSubscribed.value;
+                  final status = subCtrl.status.value;
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: isSub
+                          ? const LinearGradient(
+                              colors: [Color(0xFFE8F5E9), Color(0xFFC8E6C9)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            )
+                          : const LinearGradient(
+                              colors: [Color(0xFFE1F5FE), Color(0xFFFFF8E1)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isSub ? const Color(0xFF81C784) : const Color(0xFFFFD54F),
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: isSub
+                                ? const Color(0xFF2E7D32).withValues(alpha: 0.15)
+                                : const Color(0xFFFFA000).withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            isSub ? Icons.verified_rounded : Icons.stars_rounded,
+                            color: isSub ? const Color(0xFF2E7D32) : const Color(0xFFFFA000),
+                            size: 28,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    isSub ? "Lil Diary Premium" : "Free Plan",
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: isSub ? const Color(0xFF2E7D32) : const Color(0xFF0288D1),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      isSub ? "ACTIVE" : "FREE",
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                isSub
+                                    ? (status?.subscriptionExpiresAt != null
+                                        ? "Valid for ${status!.daysRemaining} more days"
+                                        : "Unlimited access active")
+                                    : "3 notes/day • 4 recaps/wk • 6mo history",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isSub ? const Color(0xFF2E7D32) : const Color(0xFF0288D1),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            elevation: 0,
+                          ),
+                          onPressed: () => Get.to(() => const SubscriptionScreen()),
+                          child: Text(
+                            isSub ? "Details" : "Upgrade ⭐",
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
 
                 // ============================================
                 // PROFILE WORKFLOW OPTIONS

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lildairy/controllers/calendarscreen_controller.dart';
+import 'package:lildairy/controllers/subscription_controller.dart';
 import 'package:lildairy/screens/NoteDetailsScreen.dart';
+import 'package:lildairy/screens/subscription/subscription_dialog.dart';
+import 'package:lildairy/screens/subscription/subscription_screen.dart';
 import 'package:lildairy/widget/smart_media_widget.dart';
 import 'package:lottie/lottie.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -82,7 +85,49 @@ class CalendarScreen extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: 10),
+            // Archive Notice for Free Users
+            Obx(() {
+              final subCtrl = Get.isRegistered<SubscriptionController>()
+                  ? Get.find<SubscriptionController>()
+                  : Get.put(SubscriptionController());
+              if (subCtrl.isSubscribed.value) return const SizedBox.shrink();
+
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE1F5FE),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFF81D4FA)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline_rounded, color: Color(0xFF0288D1), size: 18),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        "Free plan displays past 6 months. Upgrade to view full history.",
+                        style: TextStyle(fontSize: 12, color: Color(0xFF0277BD)),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => Get.to(() => const SubscriptionScreen()),
+                      child: const Text(
+                        "Upgrade ⭐",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF01579B),
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+
+            const SizedBox(height: 6),
 
             // ==============================
             // MEMORIES / DIARIES
@@ -94,6 +139,71 @@ class CalendarScreen extends StatelessWidget {
                   if (controller.isLoading.value) {
                     return const Center(
                       child: CircularProgressIndicator(),
+                    );
+                  }
+
+                  if (controller.isDateLocked.value) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF8E1),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: const Color(0xFFFFD54F), width: 2),
+                              ),
+                              child: const Icon(
+                                Icons.lock_clock_rounded,
+                                size: 54,
+                                color: Color(0xFFF57F17),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
+                              "Archive Locked (6+ Months Old)",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              "Free accounts can only view memories up to 6 months old. Upgrade to Lil Diary Premium to unlock your lifetime archive!",
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.black54,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 20),
+                            ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF0288D1),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              icon: const Icon(Icons.stars_rounded),
+                              label: const Text("Unlock with Premium ⭐"),
+                              onPressed: () {
+                                SubscriptionDialog.show(
+                                  context,
+                                  title: "Unlock 6-Month Archive",
+                                  description:
+                                      "Upgrade to Lil Diary Premium to view all memories past 6 months, create 6 diaries per day, and generate custom recaps!",
+                                  icon: Icons.history_toggle_off_rounded,
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
                     );
                   }
 

@@ -6,6 +6,8 @@ import 'package:get/get.dart';
 import 'package:lildairy/api/diary_api.dart';
 import 'package:lildairy/controllers/calendarscreen_controller.dart';
 import 'package:lildairy/controllers/lendinghome_controller.dart';
+import 'package:lildairy/controllers/subscription_controller.dart';
+import 'package:lildairy/screens/subscription/subscription_dialog.dart';
 import 'package:lildairy/services/storage_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -195,6 +197,38 @@ class AddNewNoteController extends GetxController {
       return;
     }
 
+    final subCtrl = Get.isRegistered<SubscriptionController>()
+        ? Get.find<SubscriptionController>()
+        : Get.put(SubscriptionController());
+    final isSub = subCtrl.isSubscribed.value;
+    final used = subCtrl.dailyDiariesUsed.value;
+    final limit = isSub ? 6 : 3;
+
+    if (used >= limit) {
+      if (!isSub) {
+        if (Get.context != null) {
+          SubscriptionDialog.show(
+            Get.context!,
+            title: "Daily Limit Reached (3/3)",
+            description:
+                "Free accounts can create up to 3 diary moments per day. Upgrade to Lil Diary Premium to create up to 6 moments every day and access your lifetime memories archive!",
+            icon: Icons.edit_calendar_rounded,
+            iconColor: const Color(0xFF0288D1),
+          );
+        }
+      } else {
+        Get.snackbar(
+          "Daily Limit Reached (6/6)",
+          "You have reached today's limit of 6 moments. You can create more moments tomorrow!",
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.orange.withValues(alpha: 0.85),
+          colorText: Colors.white,
+          duration: const Duration(seconds: 4),
+        );
+      }
+      return;
+    }
+
     try {
       isLoading.value = true;
 
@@ -213,6 +247,10 @@ class AddNewNoteController extends GetxController {
       noteController.clear();
       descriptionController.clear();
       selectedMedia.clear();
+
+      // Update quota count
+      subCtrl.dailyDiariesUsed.value++;
+      subCtrl.loadSubscriptionData();
 
       // Refresh other controllers if active
       if (Get.isRegistered<CalendarController>()) {
@@ -233,9 +271,23 @@ class AddNewNoteController extends GetxController {
       );
     } catch (e) {
       debugPrint("Add diary error: $e");
+      final errorMsg = e.toString().replaceAll('Exception: ', '');
+      if (errorMsg.toLowerCase().contains("daily diary limit reached")) {
+        if (!isSub && Get.context != null) {
+          SubscriptionDialog.show(
+            Get.context!,
+            title: "Daily Limit Reached (3/3)",
+            description:
+                "Free accounts can create up to 3 diary moments per day. Upgrade to Lil Diary Premium to create up to 6 moments every day!",
+            icon: Icons.edit_calendar_rounded,
+            iconColor: const Color(0xFF0288D1),
+          );
+          return;
+        }
+      }
       Get.snackbar(
         "Error",
-        e.toString().replaceAll('Exception: ', ''),
+        errorMsg,
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.red.withValues(alpha: 0.85),
         colorText: Colors.white,

@@ -32,8 +32,12 @@ class User {
   String? createdAt;
   String? updatedAt;
   Null deletedAt;
+  bool? isSubscribed;
+  String? subscriptionExpiresAt;
   List<Diaries>? diaries;
   List<Memories>? memories;
+
+  bool get isPremium => isSubscribed == true;
 
   User(
       {this.id,
@@ -42,6 +46,8 @@ class User {
       this.email,
       this.role,
       this.isActive,
+      this.isSubscribed,
+      this.subscriptionExpiresAt,
       this.profileImageUrl,
       this.createdAt,
       this.updatedAt,
@@ -56,6 +62,8 @@ class User {
     email = json['email'];
     role = json['role'];
     isActive = json['is_active'];
+    isSubscribed = json['is_subscribed'] == true || json['is_subscribed'] == 1;
+    subscriptionExpiresAt = json['subscription_expires_at']?.toString();
     profileImageUrl = json['profile_image_url'];
     createdAt = json['created_at'];
     updatedAt = json['updated_at'];
@@ -82,6 +90,8 @@ class User {
     data['email'] = this.email;
     data['role'] = this.role;
     data['is_active'] = this.isActive;
+    data['is_subscribed'] = this.isSubscribed;
+    data['subscription_expires_at'] = this.subscriptionExpiresAt;
     data['profile_image_url'] = this.profileImageUrl;
     data['created_at'] = this.createdAt;
     data['updated_at'] = this.updatedAt;
@@ -346,5 +356,90 @@ class RecapGenerateRequest {
       data['end_date'] = endDate!.trim();
     }
     return data;
+  }
+}
+
+class SubscriptionPlan {
+  final int id;
+  final String planName;
+  final String? description;
+  final double amount;
+  final String currency;
+  final int durationDays;
+  final bool isActive;
+
+  const SubscriptionPlan({
+    required this.id,
+    required this.planName,
+    this.description,
+    required this.amount,
+    this.currency = "INR",
+    this.durationDays = 30,
+    this.isActive = true,
+  });
+
+  factory SubscriptionPlan.fromJson(Map<String, dynamic> json) {
+    return SubscriptionPlan(
+      id: json['id'] is num ? (json['id'] as num).toInt() : 1,
+      planName: json['plan_name']?.toString() ?? 'Lil Diary Premium',
+      description: json['description']?.toString(),
+      amount: json['amount'] is num ? (json['amount'] as num).toDouble() : 199.0,
+      currency: json['currency']?.toString() ?? 'INR',
+      durationDays: json['duration_days'] is num
+          ? (json['duration_days'] as num).toInt()
+          : 30,
+      isActive: json['is_active'] == true || json['is_active'] == 1,
+    );
+  }
+}
+
+class SubscriptionStatus {
+  final bool isSubscribed;
+  final String? subscriptionExpiresAt;
+  final int daysRemaining;
+  final String planName;
+  final bool canViewOldMemories;
+  final bool canUseCustomRecap;
+  final int weeklyRecapsUsed;
+  final int weeklyRecapsLimit;
+  final int dailyDiariesUsed;
+  final int dailyDiariesLimit;
+
+  const SubscriptionStatus({
+    required this.isSubscribed,
+    this.subscriptionExpiresAt,
+    required this.daysRemaining,
+    required this.planName,
+    required this.canViewOldMemories,
+    required this.canUseCustomRecap,
+    required this.weeklyRecapsUsed,
+    required this.weeklyRecapsLimit,
+    required this.dailyDiariesUsed,
+    required this.dailyDiariesLimit,
+  });
+
+  factory SubscriptionStatus.fromJson(Map<String, dynamic> json) {
+    return SubscriptionStatus(
+      isSubscribed: json['is_subscribed'] == true || json['is_subscribed'] == 1,
+      subscriptionExpiresAt: json['subscription_expires_at']?.toString(),
+      daysRemaining: json['days_remaining'] is num
+          ? (json['days_remaining'] as num).toInt()
+          : 0,
+      planName: json['plan_name']?.toString() ?? 'Free Tier',
+      canViewOldMemories: json['can_view_old_memories'] == true,
+      canUseCustomRecap: json['can_use_custom_recap'] == true,
+      weeklyRecapsUsed: json['weekly_recaps_used'] is num
+          ? (json['weekly_recaps_used'] as num).toInt()
+          : 0,
+      weeklyRecapsLimit: json['weekly_recaps_limit'] is num
+          ? (json['weekly_recaps_limit'] as num).toInt()
+          : 4,
+      dailyDiariesUsed: json['daily_diaries_used'] is num
+          ? (json['daily_diaries_used'] as num).toInt()
+          : 0,
+      dailyDiariesLimit: json['daily_diaries_limit'] is num
+          ? (json['daily_diaries_limit'] as num).toInt()
+          : 3,
+    );
   }
 }

@@ -4,6 +4,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lildairy/controllers/add_new_note_controller.dart';
+import 'package:lildairy/controllers/subscription_controller.dart';
+import 'package:lildairy/screens/subscription/subscription_dialog.dart';
 import 'package:lildairy/widget/button.dart';
 import 'package:video_player/video_player.dart';
 
@@ -13,6 +15,9 @@ class addNewNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AddNewNoteController controller = Get.put(AddNewNoteController());
+    final SubscriptionController subController = Get.isRegistered<SubscriptionController>()
+        ? Get.find<SubscriptionController>()
+        : Get.put(SubscriptionController());
 
     return Scaffold(
       appBar: AppBar(
@@ -31,6 +36,88 @@ class addNewNote extends StatelessWidget {
         child: SingleChildScrollView(
           child: Column(
             children: [
+              // ============================================
+              // DAILY QUOTA BANNER
+              // ============================================
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
+                child: Obx(() {
+                  final used = subController.dailyDiariesUsed.value;
+                  final limit = subController.dailyDiariesLimit.value;
+                  final isSub = subController.isSubscribed.value;
+                  final isMax = used >= limit;
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isSub
+                          ? const Color(0xFFFFF8E1)
+                          : (isMax ? const Color(0xFFFFEBEE) : const Color(0xFFE1F5FE)),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSub
+                            ? const Color(0xFFFFD54F)
+                            : (isMax ? const Color(0xFFEF9A9A) : const Color(0xFF81D4FA)),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          isSub ? Icons.stars_rounded : Icons.today_rounded,
+                          color: isSub
+                              ? const Color(0xFFF57F17)
+                              : (isMax ? Colors.red : const Color(0xFF0288D1)),
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            isSub
+                                ? "Daily Moments: $used / $limit (Premium ⭐)"
+                                : "Today's Free Limit: $used / $limit moments",
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: isSub
+                                  ? const Color(0xFFF57F17)
+                                  : (isMax ? Colors.red.shade700 : const Color(0xFF0288D1)),
+                            ),
+                          ),
+                        ),
+                        if (!isSub)
+                          GestureDetector(
+                            onTap: () {
+                              SubscriptionDialog.show(
+                                context,
+                                title: "Upgrade to 6 Moments/Day",
+                                description:
+                                    "Free accounts can create up to 3 diary moments per day. Upgrade to Lil Diary Premium to create 6 moments daily, unlock custom memory recaps, and browse your entire archive past 6 months!",
+                                icon: Icons.edit_calendar_rounded,
+                              );
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0288D1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Text(
+                                "Get 6/day ⭐",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                }),
+              ),
+
               // ============================================
               // TITLE LABEL
               // ============================================
